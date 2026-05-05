@@ -1013,44 +1013,10 @@ body.mode-overlay .translation-panel.panel-open {
   .translation-panel.panel-open { transform: translateY(0); }
   body.auto-mode .viewer { padding-bottom: calc(50vh + var(--safe-bottom)); }
 
-  /* Mobile Bilingual: PDF on top, translation column flows directly
-     below the page (no bottom-sheet panel needed). */
-  body.mode-bilingual .bilingual-row {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    width: 100%;
-    padding: 0 8px;
-  }
-  body.mode-bilingual .bilingual-row .pdf-page {
-    flex-shrink: 0;
-    align-self: center;
-  }
-  body.mode-bilingual .translation-column {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-    min-width: 0;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px;
-    position: relative;
-  }
-  body.mode-bilingual .translation-card-bilingual {
-    max-width: 100%;
-    width: 100%;
-    font-size: 15px; /* slightly larger for mobile reading */
-  }
-  /* Hide the bottom-sheet panel in bilingual mode — translations live
-     inline below each page now. */
-  body.mode-bilingual .translation-panel.panel-open {
-    transform: translateY(100%);
-  }
-  body.mode-bilingual.auto-mode .viewer {
-    padding-bottom: calc(64px + var(--safe-bottom));
-  }
+  /* Mobile Bilingual: cards routed to the bottom-sheet panel via
+     auto-translator (so translations stay visible while reading). The
+     inline .translation-column stays hidden on narrow viewports. */
+  body.mode-bilingual .translation-column { display: none; }
 }
 
 /* -------- Reader view (TTS mode) -------- */

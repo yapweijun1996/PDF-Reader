@@ -160,7 +160,12 @@ async function processJob(job) {
 }
 
 function ensureCard(job, mode) {
-  if (mode === 'bilingual') return ensureBilingualCard(job);
+  // On narrow viewports the bilingual column is impractical (PDF fills
+  // most of the screen and inline cards are out of sight while reading).
+  // Render to the bottom-sheet panel instead so translations stay visible
+  // alongside the PDF as the user scrolls.
+  const isNarrow = window.innerWidth < 1024;
+  if (mode === 'bilingual' && !isNarrow) return ensureBilingualCard(job);
   if (mode === 'overlay') return ensureOverlayCard(job);
   return ensurePanelCard(job);
 }
