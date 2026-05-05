@@ -30,24 +30,30 @@ export function setTargetLang(lang) {
 export const MODES = {
   SELECTION: 'selection',
   SIDE: 'side',
-  BILINGUAL: 'bilingual'
+  BILINGUAL: 'bilingual',
+  READER: 'reader'
 };
 
 export const MODE_LABELS = {
   selection: 'Selection only',
   side: 'Side panel',
-  bilingual: 'Bilingual columns'
+  bilingual: 'Bilingual columns',
+  reader: 'Reader (TTS)'
 };
 
 export function isAutoMode(mode) {
   return mode === MODES.SIDE || mode === MODES.BILINGUAL;
 }
 
+export function isReaderMode(mode) {
+  return mode === MODES.READER;
+}
+
 export function getTranslateMode() {
   const raw = localStorage.getItem(MODE_KEY) || MODES.SELECTION;
   // Migrate legacy 'auto' value (PR #3) -> 'side'
   if (raw === 'auto') return MODES.SIDE;
-  if (![MODES.SELECTION, MODES.SIDE, MODES.BILINGUAL].includes(raw)) return MODES.SELECTION;
+  if (![MODES.SELECTION, MODES.SIDE, MODES.BILINGUAL, MODES.READER].includes(raw)) return MODES.SELECTION;
   return raw;
 }
 

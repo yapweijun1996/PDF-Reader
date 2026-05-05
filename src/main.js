@@ -2,8 +2,10 @@ import 'pdfjs-dist/web/pdf_viewer.css';
 import { renderPdf, onSelection } from './pdf-viewer.js';
 import { translate, ensureKeysLoaded } from './translator.js';
 import { explain } from './explain.js';
-import { mountLangSelector, getTargetLang, getTranslateMode, setTranslateMode, MODES, MODE_LABELS, isAutoMode } from './settings.js';
+import { mountLangSelector, getTargetLang, getTranslateMode, setTranslateMode, MODES, MODE_LABELS, isAutoMode, isReaderMode } from './settings.js';
 import { startAutoTranslate, stopAutoTranslate, rescanPages } from './auto-translator.js';
+import { startReader, stopReader, rebuild as rebuildReader } from './reader.js';
+import { initTTS } from './tts.js';
 import { initTooltip, showLoading, showResult, showError } from './tooltip.js';
 import { wireUploadUI, openPdfFile, openPdfFromRecord } from './upload.js';
 import { initHistoryDrawer } from './history.js';
@@ -72,11 +74,11 @@ function autoCtx() {
 }
 
 function applyMode(mode) {
-  // Body class drives CSS (mode-selection / mode-side / mode-bilingual)
-  document.body.classList.remove('mode-selection', 'mode-side', 'mode-bilingual', 'auto-mode');
+  document.body.classList.remove('mode-selection', 'mode-side', 'mode-bilingual', 'mode-reader', 'auto-mode');
   document.body.classList.add(`mode-${mode}`);
   if (isAutoMode(mode)) document.body.classList.add('auto-mode');
 
+  // Auto-translate (side / bilingual)
   if (isAutoMode(mode)) {
     startAutoTranslate({
       panel: document.getElementById('translationPanel'),
@@ -85,6 +87,17 @@ function applyMode(mode) {
     if (currentHasTextLayer) rescanPages();
   } else {
     stopAutoTranslate();
+  }
+
+  // Reader (TTS)
+  if (isReaderMode(mode)) {
+    startReader({
+      container: document.getElementById('readerView'),
+      toolbar: document.getElementById('readerToolbar'),
+      getContext: autoCtx
+    });
+  } else {
+    stopReader();
   }
 }
 
@@ -119,7 +132,9 @@ async function loadDemoPdf() {
     if (!hasTextLayer) {
       notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
     }
-    if (isAutoMode(getTranslateMode()) && hasTextLayer) rescanPages();
+    const m = getTranslateMode();
+    if (isAutoMode(m) && hasTextLayer) rescanPages();
+    if (isReaderMode(m) && hasTextLayer) rebuildReader();
   } finally {
     setLoading(null);
   }
@@ -135,7 +150,9 @@ async function handleFile(file) {
     } else {
       notify('Opened: ' + file.name, { duration: 2500 });
     }
-    if (isAutoMode(getTranslateMode()) && hasTextLayer) rescanPages();
+    const m = getTranslateMode();
+    if (isAutoMode(m) && hasTextLayer) rescanPages();
+    if (isReaderMode(m) && hasTextLayer) rebuildReader();
   } catch (e) {
     console.error(e);
     notify(`⚠️ ${e.message}`, { duration: 4000 });
@@ -152,7 +169,9 @@ async function handleHistoryOpen(record) {
     if (!hasTextLayer) {
       notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
     }
-    if (isAutoMode(getTranslateMode()) && hasTextLayer) rescanPages();
+    const m = getTranslateMode();
+    if (isAutoMode(m) && hasTextLayer) rescanPages();
+    if (isReaderMode(m) && hasTextLayer) rebuildReader();
   } catch (e) {
     console.error(e);
     notify(`⚠️ ${e.message}`, { duration: 4000 });
@@ -168,7 +187,9 @@ async function boot() {
   });
 
   mountLangSelector(document.getElementById('targetLang'), () => {
-    if (isAutoMode(getTranslateMode()) && currentHasTextLayer) rescanPages();
+    const m = getTranslateMode();
+    if (isAutoMode(m) && currentHasTextLayer) rescanPages();
+    if (isReaderMode(m) && currentHasTextLayer) rebuildReader();
   });
 
   mountModeSelector();
@@ -188,6 +209,7 @@ async function boot() {
   initOfflineBanner();
   initInstallPrompt(document.getElementById('installBtn'));
   initScrollAwareTopbar();
+  initTTS();
 
   initHistoryDrawer({
     drawerEl: document.getElementById('historyDrawer'),

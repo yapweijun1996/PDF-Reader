@@ -70,6 +70,32 @@
       </div>
     </aside>
 
+    <section id="readerView" class="reader-view" hidden aria-label="Reader view">
+      <div id="readerToolbar" class="reader-toolbar">
+        <button class="reader-play-all" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polygon points="6 4 20 12 6 20 6 4" fill="currentColor" />
+          </svg>
+          <span class="label">Read All</span>
+        </button>
+        <button class="reader-stop" type="button" aria-label="Stop">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+          </svg>
+        </button>
+        <label class="reader-rate-wrap">
+          <span class="reader-rate-label">Speed</span>
+          <input class="reader-rate" type="range" min="0.5" max="2" step="0.05" />
+          <span class="reader-rate-value">1.00x</span>
+        </label>
+        <label class="reader-toggle-wrap">
+          <input class="reader-toggle-original" type="checkbox" checked />
+          <span>Show original</span>
+        </label>
+      </div>
+      <div class="reader-list"></div>
+    </section>
+
     <main id="viewer" class="viewer" aria-label="PDF viewer">
       <div class="skeleton-page" aria-hidden="true">
         <div class="skeleton-line" style="width: 60%"></div>
