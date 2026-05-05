@@ -1,3 +1,6 @@
+import * as tts from './tts.js';
+import { detectLang } from './lang-detect.js';
+
 const el = () => document.getElementById('tooltip');
 const sourceEl = () => document.getElementById('tooltipSource');
 const targetEl = () => document.getElementById('tooltipTarget');
@@ -118,6 +121,102 @@ export function hide() {
 }
 
 function renderExplain(p) {
+  // Backward compatibility: if cached payload has the old schema (PR #2),
+  // render using the legacy block layout.
+  if (!p || !p.schemaVersion || p.schemaVersion < 2) {
+    renderExplainLegacy(p || {});
+    return;
+  }
+
+  const sourceLang = p.sourceLang || detectLang(currentSource);
+  const sourceTag = sourceLang.bcp47 || 'en-US';
+
+  const sec = (icon, label, body, opts = {}) => body
+    ? `<div class="explain-block ${opts.collapsible ? 'is-collapsible' : ''}" ${opts.collapsed ? 'data-collapsed="1"' : ''}>
+         <div class="explain-label">${icon} ${label}${opts.collapsible ? ' <span class="explain-toggle">+</span>' : ''}</div>
+         <div class="explain-body-text">${body}</div>
+       </div>`
+    : '';
+
+  // Headword section: phrase + phonetic + 🔊 + partOfSpeech + CEFR badge
+  const head = `
+    <div class="explain-head">
+      <button class="tts-btn" data-tts="${escapeAttr(currentSource)}" data-lang="${sourceTag}" title="Read aloud">
+        ${ttsSvg()}
+      </button>
+      <div class="explain-head-text">
+        <span class="explain-headword">${escapeHtml(currentSource)}</span>
+        ${p.phonetic ? `<span class="explain-phonetic">${escapeHtml(p.phonetic)}</span>` : ''}
+      </div>
+      <div class="explain-head-meta">
+        ${p.partOfSpeech ? `<span class="badge badge-pos">${escapeHtml(p.partOfSpeech)}</span>` : ''}
+        ${p.cefrLevel && p.cefrLevel !== 'unknown' ? `<span class="badge badge-cefr">${escapeHtml(p.cefrLevel)}</span>` : ''}
+      </div>
+    </div>`;
+
+  const definitions = (p.definitionSrc || p.definitionTgt) ? `
+    <div class="explain-block">
+      <div class="explain-label">📖 Definition</div>
+      ${p.definitionSrc ? `<div class="explain-def-src">${escapeHtml(p.definitionSrc)}</div>` : ''}
+      ${p.definitionTgt ? `<div class="explain-def-tgt">${escapeHtml(p.definitionTgt)}</div>` : ''}
+    </div>` : '';
+
+  const examples = p.examples?.length ? `
+    <div class="explain-block">
+      <div class="explain-label">💡 Examples</div>
+      <div class="explain-examples">
+        ${p.examples.map(e => `
+          <div class="explain-example">
+            <div class="explain-example-head">
+              <button class="tts-btn tts-btn-sm" data-tts="${escapeAttr(e.src)}" data-lang="${sourceTag}" title="Read aloud">
+                ${ttsSvg()}
+              </button>
+              ${e.level ? `<span class="badge badge-cefr badge-sm">${escapeHtml(e.level)}</span>` : ''}
+            </div>
+            <div class="explain-example-src">${escapeHtml(e.src)}</div>
+            <div class="explain-example-tgt">${escapeHtml(e.tgt)}</div>
+          </div>`).join('')}
+      </div>
+    </div>` : '';
+
+  const collocations = p.collocations?.length
+    ? sec('🔤', 'Collocations', `<div class="explain-chips">${p.collocations.map(c => `<span class="chip">${escapeHtml(c)}</span>`).join('')}</div>`, { collapsible: true })
+    : '';
+
+  const family = p.wordFamily?.length ? sec('🌳', 'Word family', `
+    <ul class="explain-list">
+      ${p.wordFamily.map(w => `
+        <li>
+          <button class="tts-btn tts-btn-xs" data-tts="${escapeAttr(w.word)}" data-lang="${sourceTag}" title="Read aloud">${ttsSvg()}</button>
+          <strong>${escapeHtml(w.word)}</strong>
+          ${w.pos ? `<span class="muted"> (${escapeHtml(w.pos)})</span>` : ''}
+          ${w.meaning ? ` — ${escapeHtml(w.meaning)}` : ''}
+        </li>`).join('')}
+    </ul>`, { collapsible: true }) : '';
+
+  const synonyms = p.synonyms?.length ? sec('🔁', 'Synonyms', `
+    <ul class="explain-list">
+      ${p.synonyms.map(s => `
+        <li>
+          <button class="tts-btn tts-btn-xs" data-tts="${escapeAttr(s.word)}" data-lang="${sourceTag}" title="Read aloud">${ttsSvg()}</button>
+          <strong>${escapeHtml(s.word)}</strong>
+          ${s.note ? ` — <span class="muted">${escapeHtml(s.note)}</span>` : ''}
+        </li>`).join('')}
+    </ul>`, { collapsible: true }) : '';
+
+  const antonyms = p.antonyms?.length
+    ? sec('↔️', 'Antonyms', `<div class="explain-chips">${p.antonyms.map(a => `<span class="chip">${escapeHtml(a)}</span>`).join('')}</div>`, { collapsible: true })
+    : '';
+
+  const tip = p.memoryTip ? sec('💭', 'Memory tip', escapeHtml(p.memoryTip), { collapsible: true }) : '';
+  const ctx = p.context ? sec('📍', 'In context', escapeHtml(p.context)) : '';
+
+  explainBody().innerHTML = head + definitions + ctx + examples + collocations + family + synonyms + antonyms + tip;
+
+  wireExplainInteractions();
+}
+
+function renderExplainLegacy(p) {
   const safe = (s) => String(s || '').trim();
   const list = (arr) => Array.isArray(arr) && arr.length
     ? `<ul>${arr.map(x => `<li>${escapeHtml(safe(x))}</li>`).join('')}</ul>`
@@ -132,6 +231,52 @@ function renderExplain(p) {
     block('💡', 'Examples', list(p.examples)),
     block('🔗', 'Related', list(p.related))
   ].filter(Boolean).join('');
+}
+
+function wireExplainInteractions() {
+  const root = explainBody();
+  // TTS buttons
+  root.querySelectorAll('.tts-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const text = btn.dataset.tts;
+      const lang = btn.dataset.lang || 'en-US';
+      if (!text) return;
+      tts.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = lang;
+      const candidates = tts.listVoicesForLang(lang);
+      if (candidates.length) utter.voice = candidates[0];
+      btn.classList.add('tts-btn-active');
+      utter.addEventListener('end', () => btn.classList.remove('tts-btn-active'));
+      utter.addEventListener('error', () => btn.classList.remove('tts-btn-active'));
+      window.speechSynthesis.speak(utter);
+    });
+  });
+  // Collapsible blocks
+  root.querySelectorAll('.explain-block.is-collapsible .explain-label').forEach(label => {
+    label.addEventListener('click', () => {
+      const block = label.parentElement;
+      const collapsed = block.dataset.collapsed === '1';
+      block.dataset.collapsed = collapsed ? '0' : '1';
+      const tog = block.querySelector('.explain-toggle');
+      if (tog) tog.textContent = collapsed ? '−' : '+';
+    });
+  });
+}
+
+function ttsSvg() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M11 5l-6 4H3v6h2l6 4z" fill="currentColor" />
+    <path d="M15 9c1.5 1 1.5 5 0 6" />
+    <path d="M18 6c3 2 3 10 0 12" />
+  </svg>`;
+}
+
+function escapeAttr(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
 }
 
 function truncate(s, n) {
