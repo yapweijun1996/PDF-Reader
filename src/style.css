@@ -66,6 +66,11 @@ button { font-family: inherit; }
 }
 .icon-btn:hover { background: #1e293b; }
 .icon-btn:active { background: #0b1220; }
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
 
 .lang-select {
   display: flex;
