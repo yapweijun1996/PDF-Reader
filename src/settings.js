@@ -1,5 +1,14 @@
 const KEY = 'pdfReader.targetLang';
 const MODE_KEY = 'pdfReader.translateMode';
+const READER_PREFS_KEY = 'pdfReader.readerPrefs';
+
+export const READER_THEMES = ['dark', 'light', 'sepia', 'black'];
+const DEFAULT_READER_PREFS = {
+  fontSize: 17,
+  lineHeight: 1.7,
+  theme: 'dark',
+  showSource: true
+};
 
 export const LANGUAGES = [
   { value: 'Chinese (Simplified)', label: '中文（简）' },
@@ -49,6 +58,23 @@ export function isAutoMode(mode) {
 
 export function isReaderMode(mode) {
   return mode === MODES.READER;
+}
+
+export function getReaderPrefs() {
+  try {
+    const raw = localStorage.getItem(READER_PREFS_KEY);
+    if (!raw) return { ...DEFAULT_READER_PREFS };
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_READER_PREFS, ...parsed };
+  } catch {
+    return { ...DEFAULT_READER_PREFS };
+  }
+}
+
+export function setReaderPrefs(patch) {
+  const merged = { ...getReaderPrefs(), ...patch };
+  try { localStorage.setItem(READER_PREFS_KEY, JSON.stringify(merged)); } catch {}
+  return merged;
 }
 
 export function getTranslateMode() {

@@ -1256,16 +1256,57 @@ body.mode-overlay .translation-panel.panel-open {
   body.mode-bilingual .translation-column { display: none; }
 }
 
-/* -------- Reader view (TTS mode) -------- */
+/* -------- Reader view (TTS + e-reader) -------- */
 .reader-view {
+  /* Theme variables — defaults match dark, overridden by data-theme */
+  --r-bg: #0f172a;
+  --r-text: #e5e7eb;
+  --r-muted: #9ca3af;
+  --r-card-bg: #1f2937;
+  --r-card-border: #374151;
+  --r-accent: #60a5fa;
+  --r-toolbar-bg: #1f2937;
+  --r-font-size: 17px;
+  --r-line-height: 1.7;
+
   position: fixed;
   inset: 0;
   top: calc(var(--topbar-h) + var(--safe-top));
   z-index: 30;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: var(--r-bg);
+  color: var(--r-text);
   padding-bottom: var(--safe-bottom);
+  transition: background 0.2s, color 0.2s;
+}
+
+.reader-view[data-theme="light"] {
+  --r-bg: #fafaf7;
+  --r-text: #1f2937;
+  --r-muted: #6b7280;
+  --r-card-bg: #ffffff;
+  --r-card-border: #e5e7eb;
+  --r-accent: #2563eb;
+  --r-toolbar-bg: #f3f3ee;
+}
+.reader-view[data-theme="sepia"] {
+  --r-bg: #f4ecd8;
+  --r-text: #5b4636;
+  --r-muted: #8b7355;
+  --r-card-bg: #ede0c5;
+  --r-card-border: #d4c4a0;
+  --r-accent: #b8762c;
+  --r-toolbar-bg: #ede0c5;
+}
+.reader-view[data-theme="black"] {
+  --r-bg: #000000;
+  --r-text: #c8c8c8;
+  --r-muted: #888888;
+  --r-card-bg: #0a0a0a;
+  --r-card-border: #1f1f1f;
+  --r-accent: #4d9aff;
+  --r-toolbar-bg: #0a0a0a;
 }
 .reader-view[hidden] { display: none; }
 
@@ -1278,11 +1319,51 @@ body.mode-reader .viewer { display: none; }
   flex-wrap: wrap;
   gap: 12px;
   padding: 10px 16px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
+  background: var(--r-toolbar-bg);
+  border-bottom: 1px solid var(--r-card-border);
   position: sticky;
   top: 0;
   z-index: 1;
+}
+
+.reader-appearance {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.reader-font-dec,
+.reader-font-inc,
+.reader-export {
+  background: var(--r-card-bg);
+  color: var(--r-text);
+  border: 1px solid var(--r-card-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.reader-font-dec:hover,
+.reader-font-inc:hover,
+.reader-export:hover { border-color: var(--r-accent); color: var(--r-accent); }
+.reader-export svg { width: 14px; height: 14px; }
+.reader-theme {
+  background: var(--r-card-bg);
+  color: var(--r-text);
+  border: 1px solid var(--r-card-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  min-height: 32px;
+}
+@media (max-width: 480px) {
+  .reader-export span { display: none; }
+  .reader-appearance { gap: 4px; margin-left: 0; }
 }
 
 .reader-play-all,
@@ -1347,17 +1428,17 @@ body.mode-reader .viewer { display: none; }
 }
 
 .reader-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: var(--r-card-bg);
+  border: 1px solid var(--r-card-border);
   border-radius: 12px;
   padding: 14px 16px;
   margin-bottom: 14px;
   position: relative;
-  transition: border-color 0.18s, transform 0.1s;
+  transition: border-color 0.18s, transform 0.1s, background 0.2s;
 }
 .reader-card-speaking {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--r-accent);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
 }
 .reader-card-error { border-color: #b91c1c; }
 
@@ -1382,39 +1463,44 @@ body.mode-reader .viewer { display: none; }
 .reader-play-btn:hover { background: #1e293b; }
 
 .reader-source {
-  color: var(--muted);
-  font-size: 13px;
+  color: var(--r-muted);
+  font-size: calc(var(--r-font-size) * 0.82);
   line-height: 1.5;
   margin-right: 48px;
   margin-bottom: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--r-card-border);
 }
 body.hide-source .reader-source { display: none; }
 body.hide-source .reader-card { padding-top: 14px; }
 body.hide-source .reader-target { margin-top: 0; }
 
 .reader-target {
-  color: var(--text);
-  font-size: 16px;
-  line-height: 1.7;
+  color: var(--r-text);
+  font-size: var(--r-font-size);
+  line-height: var(--r-line-height);
   white-space: pre-wrap;
   word-break: break-word;
   margin-right: 48px;
 }
 
 .reader-empty {
-  color: var(--muted);
+  color: var(--r-muted);
   text-align: center;
   padding: 48px 20px;
   font-size: 14px;
+}
+
+.reader-play-btn {
+  background: var(--r-card-bg);
+  border-color: var(--r-card-border);
+  color: var(--r-accent);
 }
 
 @media (max-width: 480px) {
   .reader-toolbar { padding: 8px 10px; gap: 8px; }
   .reader-rate { width: 90px; }
   .reader-list { padding: 10px; }
-  .reader-target { font-size: 17px; }
 }
 
 /* -------- Skeleton loader (shown before first PDF render) -------- */

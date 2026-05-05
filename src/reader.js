@@ -7,7 +7,12 @@ import { translate } from './translator.js';
 import { getTrans, putTrans } from './db.js';
 import { extractAllParagraphs } from './paragraphs.js';
 import { renderMarkdown, looksLikeMarkdown } from './markdown.js';
+import { getReaderPrefs, setReaderPrefs, READER_THEMES } from './settings.js';
 import * as tts from './tts.js';
+
+const FONT_MIN = 13;
+const FONT_MAX = 26;
+const FONT_STEP = 1;
 
 const INTER_CALL_DELAY_MS = 500;
 
@@ -36,8 +41,18 @@ export function startReader({ container, toolbar, getContext }) {
   containerEl.hidden = false;
   document.body.classList.add('reader-open');
 
+  applyPrefs();
   bindToolbar();
   rebuild();
+}
+
+function applyPrefs() {
+  const prefs = getReaderPrefs();
+  containerEl.dataset.theme = prefs.theme;
+  containerEl.style.setProperty('--r-font-size', `${prefs.fontSize}px`);
+  containerEl.style.setProperty('--r-line-height', String(prefs.lineHeight));
+  showOriginal = prefs.showSource;
+  document.body.classList.toggle('hide-source', !showOriginal);
 }
 
 export function stopReader() {
@@ -178,7 +193,56 @@ function bindToolbar() {
   toggle.onchange = () => {
     showOriginal = toggle.checked;
     document.body.classList.toggle('hide-source', !showOriginal);
+    setReaderPrefs({ showSource: showOriginal });
   };
+
+  // Font size +/-
+  toolbarEl.querySelector('.reader-font-dec').onclick = () => bumpFont(-FONT_STEP);
+  toolbarEl.querySelector('.reader-font-inc').onclick = () => bumpFont(+FONT_STEP);
+
+  // Theme picker
+  const themeSel = toolbarEl.querySelector('.reader-theme');
+  themeSel.value = getReaderPrefs().theme;
+  themeSel.onchange = () => {
+    const theme = READER_THEMES.includes(themeSel.value) ? themeSel.value : 'dark';
+    containerEl.dataset.theme = theme;
+    setReaderPrefs({ theme });
+  };
+
+  // Export
+  toolbarEl.querySelector('.reader-export').onclick = exportTxt;
+}
+
+function bumpFont(delta) {
+  const prefs = getReaderPrefs();
+  const newSize = Math.max(FONT_MIN, Math.min(FONT_MAX, prefs.fontSize + delta));
+  containerEl.style.setProperty('--r-font-size', `${newSize}px`);
+  setReaderPrefs({ fontSize: newSize });
+}
+
+function exportTxt() {
+  if (!allParagraphs.length) return;
+  const ctx = getCtx?.();
+  const lang = ctx?.lang || '';
+  const lines = [`Translation export — target language: ${lang}`, '='.repeat(60), ''];
+  for (const p of allParagraphs) {
+    const card = cards.get(p.segId);
+    const tgt = card?.target?.textContent || '(not yet translated)';
+    lines.push(`[${p.segId}]`);
+    lines.push(p.text);
+    lines.push('---');
+    lines.push(tgt);
+    lines.push('');
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `translation-${Date.now()}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function speakOne(segId) {

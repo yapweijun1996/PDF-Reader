@@ -93,6 +93,24 @@
           <input class="reader-toggle-original" type="checkbox" checked />
           <span>Show original</span>
         </label>
+        <div class="reader-appearance">
+          <button class="reader-font-dec" type="button" aria-label="Decrease font size">A-</button>
+          <button class="reader-font-inc" type="button" aria-label="Increase font size">A+</button>
+          <select class="reader-theme" aria-label="Theme">
+            <option value="dark">🌙 Dark</option>
+            <option value="light">☀️ Light</option>
+            <option value="sepia">📜 Sepia</option>
+            <option value="black">⚫ Black</option>
+          </select>
+          <button class="reader-export" type="button" title="Export translation as .txt">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 4v12" />
+              <polyline points="7 11 12 16 17 11" />
+              <path d="M5 20h14" />
+            </svg>
+            <span>Export</span>
+          </button>
+        </div>
       </div>
       <div class="reader-list"></div>
     </section>
