@@ -8,6 +8,8 @@ import { wireUploadUI, openPdfFile, openPdfFromRecord } from './upload.js';
 import { initHistoryDrawer } from './history.js';
 import { getDocHash } from './db.js';
 import { toast } from './toast.js';
+import { initOfflineBanner } from './offline.js';
+import { initInstallPrompt } from './install.js';
 import { registerSW } from 'virtual:pwa-register';
 
 const viewer = () => document.getElementById('viewer');
@@ -95,6 +97,9 @@ async function boot() {
     dropZone: document.getElementById('dropZone'),
     onFile: handleFile
   });
+
+  initOfflineBanner();
+  initInstallPrompt(document.getElementById('installBtn'));
 
   initHistoryDrawer({
     drawerEl: document.getElementById('historyDrawer'),

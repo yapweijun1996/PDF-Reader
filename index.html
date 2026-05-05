@@ -30,12 +30,30 @@
         <h1 class="title">PDF Reader</h1>
       </div>
       <div class="topbar-actions">
+        <button id="installBtn" class="install-btn" type="button" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 4v12" />
+            <polyline points="7 11 12 16 17 11" />
+            <path d="M5 20h14" />
+          </svg>
+          <span class="install-label">Install</span>
+        </button>
         <label class="lang-select">
           <span class="lang-label">Translate to</span>
           <select id="targetLang" aria-label="Target language"></select>
         </label>
       </div>
     </header>
+
+    <div id="offlineBanner" class="offline-banner" role="status" aria-live="polite">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 3l18 18" />
+        <path d="M9.5 16.5a5 5 0 0 1 5 0" />
+        <path d="M5 12a10 10 0 0 1 4-2.5" />
+        <path d="M19 12a10 10 0 0 0-4-2.5" />
+      </svg>
+      <span>You're offline — cached PDFs and translations still work.</span>
+    </div>
 
     <main id="viewer" class="viewer" aria-label="PDF viewer"></main>
 

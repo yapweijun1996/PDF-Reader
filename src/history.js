@@ -9,6 +9,61 @@ export function initHistoryDrawer({ drawerEl, openButton, closeButton, onOpen })
   drawerEl?.addEventListener('click', (e) => {
     if (e.target === drawerEl) closeDrawer(drawerEl);
   });
+  wireSwipeToClose(drawerEl);
+}
+
+function wireSwipeToClose(drawerEl) {
+  const panel = drawerEl?.querySelector('.drawer-panel');
+  if (!panel) return;
+
+  let startX = 0;
+  let startY = 0;
+  let dx = 0;
+  let dragging = false;
+  let horizontal = false;
+
+  panel.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    dx = 0;
+    dragging = true;
+    horizontal = false;
+    panel.style.transition = 'none';
+  }, { passive: true });
+
+  panel.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const t = e.touches[0];
+    const ax = t.clientX - startX;
+    const ay = t.clientY - startY;
+    if (!horizontal) {
+      // Lock direction on first significant move
+      if (Math.abs(ax) > 8 || Math.abs(ay) > 8) {
+        horizontal = Math.abs(ax) > Math.abs(ay);
+        if (!horizontal) { dragging = false; panel.style.transition = ''; return; }
+      } else {
+        return;
+      }
+    }
+    dx = Math.max(0, ax);
+    panel.style.transform = `translateX(${dx}px)`;
+  }, { passive: true });
+
+  const end = () => {
+    if (!dragging) return;
+    dragging = false;
+    panel.style.transition = '';
+    const threshold = panel.offsetWidth * 0.3;
+    if (dx > threshold) {
+      closeDrawer(drawerEl);
+      panel.style.transform = '';
+    } else {
+      panel.style.transform = '';
+    }
+  };
+  panel.addEventListener('touchend', end);
+  panel.addEventListener('touchcancel', end);
 }
 
 async function openDrawer(drawerEl) {
