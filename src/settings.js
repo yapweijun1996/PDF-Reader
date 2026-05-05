@@ -2,21 +2,21 @@ const KEY = 'pdfReader.targetLang';
 const MODE_KEY = 'pdfReader.translateMode';
 
 export const LANGUAGES = [
-  'Chinese (Simplified)',
-  'Chinese (Traditional)',
-  'English',
-  'Malay',
-  'Indonesian',
-  'Japanese',
-  'Korean',
-  'Spanish',
-  'French',
-  'German',
-  'Portuguese',
-  'Arabic',
-  'Hindi',
-  'Thai',
-  'Vietnamese'
+  { value: 'Chinese (Simplified)', label: '中文（简）' },
+  { value: 'Chinese (Traditional)', label: '中文（繁）' },
+  { value: 'English', label: 'English' },
+  { value: 'Malay', label: 'Melayu' },
+  { value: 'Indonesian', label: 'Indonesia' },
+  { value: 'Japanese', label: '日本語' },
+  { value: 'Korean', label: '한국어' },
+  { value: 'Spanish', label: 'Español' },
+  { value: 'French', label: 'Français' },
+  { value: 'German', label: 'Deutsch' },
+  { value: 'Portuguese', label: 'Português' },
+  { value: 'Arabic', label: 'العربية' },
+  { value: 'Hindi', label: 'हिन्दी' },
+  { value: 'Thai', label: 'ไทย' },
+  { value: 'Vietnamese', label: 'Tiếng Việt' }
 ];
 
 export function getTargetLang() {
@@ -36,11 +36,11 @@ export const MODES = {
 };
 
 export const MODE_LABELS = {
-  selection: 'Selection only',
+  selection: 'Selection',
   side: 'Side panel',
-  bilingual: 'Bilingual columns',
-  overlay: 'Overlay (replace text)',
-  reader: 'Reader (TTS)'
+  bilingual: 'Bilingual',
+  overlay: 'Overlay',
+  reader: 'Reader'
 };
 
 export function isAutoMode(mode) {
@@ -66,11 +66,11 @@ export function setTranslateMode(mode) {
 export function mountLangSelector(selectEl, onChangeExtra) {
   selectEl.innerHTML = '';
   const current = getTargetLang();
-  for (const lang of LANGUAGES) {
+  for (const { value, label } of LANGUAGES) {
     const opt = document.createElement('option');
-    opt.value = lang;
-    opt.textContent = lang;
-    if (lang === current) opt.selected = true;
+    opt.value = value;
+    opt.textContent = label;
+    if (value === current) opt.selected = true;
     selectEl.appendChild(opt);
   }
   selectEl.addEventListener('change', () => {
