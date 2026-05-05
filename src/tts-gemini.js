@@ -94,18 +94,46 @@ export async function synthesizeGemini({ text, voice = 'Zephyr', apiKey, tempera
   }
 
   const base64Parts = [];
+  let mimeType = '';
+  let sampleRate = SAMPLE_RATE;
   for (const chunk of chunks) {
     const parts = chunk?.candidates?.[0]?.content?.parts || [];
     for (const p of parts) {
-      const data = p?.inlineData?.data || p?.inline_data?.data;
-      if (data) base64Parts.push(data);
+      const inline = p?.inlineData || p?.inline_data;
+      if (inline?.data) {
+        base64Parts.push(inline.data);
+        if (inline.mimeType && !mimeType) mimeType = inline.mimeType;
+      }
     }
   }
   if (base64Parts.length === 0) throw new Error('Gemini TTS: no audio in response');
+  console.log('[tts-gemini] mimeType:', mimeType, 'chunks:', base64Parts.length);
 
-  const pcmBytes = base64ConcatToBytes(base64Parts);
-  const wavBytes = wrapPcmInWav(pcmBytes, SAMPLE_RATE, CHANNELS, BITS_PER_SAMPLE);
+  // Parse rate from mimeType when present (e.g. "audio/l16; rate=24000; channels=1")
+  const rateMatch = /rate=(\d+)/i.exec(mimeType);
+  if (rateMatch) sampleRate = parseInt(rateMatch[1], 10);
+
+  let pcmBytes = base64ConcatToBytes(base64Parts);
+
+  // RFC 2586 says audio/L16 is big-endian PCM. WAV container expects
+  // little-endian. If the response declares L16 explicitly, swap byte
+  // pairs. Most Gemini TTS responses tested in the wild actually arrive
+  // little-endian (Google convention), but we honor the declared format.
+  if (/audio\/l16/i.test(mimeType)) {
+    pcmBytes = swapEndian16(pcmBytes);
+  }
+
+  const wavBytes = wrapPcmInWav(pcmBytes, sampleRate, CHANNELS, BITS_PER_SAMPLE);
   return new Blob([wavBytes], { type: 'audio/wav' });
+}
+
+function swapEndian16(bytes) {
+  const out = new Uint8Array(bytes.length);
+  for (let i = 0; i + 1 < bytes.length; i += 2) {
+    out[i] = bytes[i + 1];
+    out[i + 1] = bytes[i];
+  }
+  return out;
 }
 
 /**
