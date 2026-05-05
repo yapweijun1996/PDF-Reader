@@ -261,15 +261,7 @@ function wireExplainInteractions() {
       const text = btn.dataset.tts;
       const lang = btn.dataset.lang || 'en-US';
       if (!text) return;
-      tts.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = lang;
-      const candidates = tts.listVoicesForLang(lang);
-      if (candidates.length) utter.voice = candidates[0];
-      btn.classList.add('tts-btn-active');
-      utter.addEventListener('end', () => btn.classList.remove('tts-btn-active'));
-      utter.addEventListener('error', () => btn.classList.remove('tts-btn-active'));
-      window.speechSynthesis.speak(utter);
+      speakWith(btn, text, lang);
     });
   });
   // Collapsible blocks
@@ -287,14 +279,25 @@ function wireExplainInteractions() {
 function speakWith(btn, text, langTag) {
   if (!text) return;
   tts.cancel();
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = langTag || 'en-US';
-  const candidates = tts.listVoicesForLang(utter.lang);
-  if (candidates.length) utter.voice = candidates[0];
   btn.classList.add('tts-btn-active');
-  utter.addEventListener('end', () => btn.classList.remove('tts-btn-active'));
-  utter.addEventListener('error', () => btn.classList.remove('tts-btn-active'));
-  window.speechSynthesis.speak(utter);
+  const lang = invertLang(langTag) || 'English';
+  tts.speak(text, lang, {
+    onend: () => btn.classList.remove('tts-btn-active'),
+    onerror: () => btn.classList.remove('tts-btn-active')
+  });
+}
+
+// Reverse the BCP-47 → lang-name map so tts.speak() can re-derive the tag
+function invertLang(langTag) {
+  const map = {
+    'en-US': 'English', 'zh-CN': 'Chinese (Simplified)',
+    'zh-TW': 'Chinese (Traditional)', 'ja-JP': 'Japanese',
+    'ko-KR': 'Korean', 'es-ES': 'Spanish', 'fr-FR': 'French',
+    'de-DE': 'German', 'pt-PT': 'Portuguese', 'ar-SA': 'Arabic',
+    'hi-IN': 'Hindi', 'th-TH': 'Thai', 'vi-VN': 'Vietnamese',
+    'ms-MY': 'Malay', 'id-ID': 'Indonesian'
+  };
+  return map[langTag];
 }
 
 function ttsSvg() {

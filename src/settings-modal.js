@@ -9,6 +9,7 @@
 import { getUserConfig, setUserConfig, clearUserConfig } from './db.js';
 import { toast } from './toast.js';
 import { getAppTheme, setAppTheme, THEMES } from './theme.js';
+import { GEMINI_VOICES } from './tts-gemini.js';
 
 const MODEL_OPTIONS = {
   gemini: [
@@ -105,6 +106,22 @@ async function renderForm() {
       Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.
       Leave blank to use the shared rotation.
     </p>
+
+    <div class="settings-section">
+      <div class="settings-section-title">Text-to-Speech</div>
+      <label class="settings-row">
+        <span>TTS provider</span>
+        <select class="settings-tts-provider">
+          <option value="browser" ${(cfg.ttsProvider || 'browser') === 'browser' ? 'selected' : ''}>Browser (free, system voices)</option>
+          <option value="gemini" ${cfg.ttsProvider === 'gemini' ? 'selected' : ''}>Gemini TTS (uses your API key, higher quality)</option>
+        </select>
+      </label>
+      <label class="settings-row settings-row-tts-voice" style="display:${cfg.ttsProvider === 'gemini' ? 'flex' : 'none'}">
+        <span>Voice</span>
+        <select class="settings-tts-voice"></select>
+      </label>
+    </div>
+
     <div class="settings-actions">
       <button class="settings-clear" type="button">Clear</button>
       <button class="settings-save" type="button">Save</button>
@@ -125,6 +142,22 @@ async function renderForm() {
       modelSel.value === 'custom' ? 'flex' : 'none';
   });
 
+  // TTS provider + voice picker
+  const ttsProviderSel = body.querySelector('.settings-tts-provider');
+  const ttsVoiceSel = body.querySelector('.settings-tts-voice');
+  const currentVoice = cfg.ttsVoice || 'Zephyr';
+  for (const v of GEMINI_VOICES) {
+    const o = document.createElement('option');
+    o.value = v.name;
+    o.textContent = `${v.name} — ${v.tone}`;
+    if (v.name === currentVoice) o.selected = true;
+    ttsVoiceSel.appendChild(o);
+  }
+  ttsProviderSel.addEventListener('change', () => {
+    body.querySelector('.settings-row-tts-voice').style.display =
+      ttsProviderSel.value === 'gemini' ? 'flex' : 'none';
+  });
+
   // Theme segmented control
   body.querySelectorAll('.theme-segmented-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -143,7 +176,9 @@ async function renderForm() {
       provider: body.querySelector('.settings-provider').value,
       model: modelSel.value,
       customModel: body.querySelector('.settings-custom-model').value.trim(),
-      apiKey: body.querySelector('.settings-apikey').value.trim()
+      apiKey: body.querySelector('.settings-apikey').value.trim(),
+      ttsProvider: ttsProviderSel.value,
+      ttsVoice: ttsVoiceSel.value
     };
     await setUserConfig(newCfg);
     toast(newCfg.apiKey ? 'Saved — using your API key' : 'Saved — using shared rotation', { duration: 2400 });
