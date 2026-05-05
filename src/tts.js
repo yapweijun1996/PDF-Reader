@@ -8,6 +8,7 @@
 import { synthesizeGemini, GEMINI_VOICES } from './tts-gemini.js';
 import { getUserConfig } from './db.js';
 import { getActiveModelConfig } from './settings-modal.js';
+import { toast } from './toast.js';
 
 const LANG_MAP = {
   'Chinese (Simplified)': 'zh-CN',
@@ -81,7 +82,8 @@ export async function speak(text, targetLang, opts = {}) {
     try {
       return await speakGemini(text, opts);
     } catch (e) {
-      console.warn('[tts] Gemini failed, falling back to browser:', e.message);
+      console.warn('[tts] Gemini failed, falling back to browser:', e);
+      toast(`⚠️ Gemini TTS: ${e.message || e}`, { duration: 5000 });
       // Fall through to browser
     }
   }
@@ -113,7 +115,7 @@ function speakBrowser(text, targetLang, opts) {
 async function speakGemini(text, opts) {
   const userCfg = await getActiveModelConfig();
   const apiKey = userCfg.apiKey;
-  if (!apiKey) throw new Error('Gemini TTS requires API key');
+  if (!apiKey) throw new Error('Gemini TTS requires an API key — open Settings ⚙ and paste your Google AI Studio key.');
   const cfg = await getUserConfig();
   const voice = opts.voice || cfg.ttsVoice || 'Zephyr';
   const cacheKey = `gemini::${voice}::${text}`;
@@ -121,27 +123,37 @@ async function speakGemini(text, opts) {
   let blobUrl = audioCache.get(cacheKey);
   if (!blobUrl) {
     opts.onstart?.();
+    console.log('[tts] Gemini synthesizing…', { voice, len: text.length });
     const blob = await synthesizeGemini({ text, voice, apiKey });
     blobUrl = URL.createObjectURL(blob);
     audioCache.set(cacheKey, blobUrl);
-    // Cap cache size
     if (audioCache.size > 50) {
       const firstKey = audioCache.keys().next().value;
       const oldUrl = audioCache.get(firstKey);
       URL.revokeObjectURL(oldUrl);
       audioCache.delete(firstKey);
     }
+    console.log('[tts] Gemini synth ok, ' + blob.size + ' bytes');
+  } else {
+    opts.onstart?.();
+    console.log('[tts] Gemini cache hit');
   }
 
   const audio = new Audio(blobUrl);
   audio.playbackRate = opts.rate ?? 1;
   audio.addEventListener('ended', () => opts.onend?.());
-  audio.addEventListener('error', (e) => opts.onerror?.(e));
+  audio.addEventListener('error', (e) => {
+    console.warn('[tts] audio element error:', e);
+    opts.onerror?.(e);
+  });
   currentAudio = audio;
   currentBlobUrl = blobUrl;
-  // Fire onstart for callers that expect it before audio actually plays
-  if (!audioCache.has(cacheKey)) opts.onstart?.();
-  await audio.play().catch(e => opts.onerror?.(e));
+  try {
+    await audio.play();
+  } catch (e) {
+    console.warn('[tts] audio.play() rejected:', e);
+    throw e; // bubble up so caller's try/catch (in speak) shows toast
+  }
   return audio;
 }
 
