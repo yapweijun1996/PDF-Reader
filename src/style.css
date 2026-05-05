@@ -142,10 +142,43 @@ button { font-family: inherit; }
 }
 
 @media (max-width: 480px) {
-  .lang-label { display: none; }
+  .lang-label, .mode-label { display: none; }
   .title { display: none; }
-  .lang-select select { max-width: 150px; }
-  .topbar { padding: 6px 8px; padding-top: calc(6px + var(--safe-top)); }
+  .topbar {
+    padding: 6px 8px;
+    padding-top: calc(6px + var(--safe-top));
+    gap: 6px;
+  }
+  .topbar-left { gap: 4px; }
+  .topbar-actions { gap: 4px; }
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+  }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .lang-select select,
+  .mode-select select {
+    max-width: 120px;
+    min-height: 40px;
+    padding: 6px;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+  .install-btn {
+    height: 40px;
+    padding: 0 8px;
+    border-radius: 8px;
+  }
+  .install-btn svg { width: 14px; height: 14px; }
+}
+
+@media (max-width: 360px) {
+  /* Ultra-narrow phones: collapse Mode + Lang to compact selectors,
+     drop Install button (still installable via browser menu). */
+  .install-btn { display: none !important; }
+  .lang-select select,
+  .mode-select select { max-width: 100px; font-size: 11px; }
 }
 
 /* -------- Install button -------- */
@@ -989,9 +1022,11 @@ body.mode-overlay .translation-panel.panel-open {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* When panel is open on wide screens, shift viewer left to make room */
+/* When the side panel is open on wide screens (Side mode only), shift the
+   viewer left so PDF stays visible alongside the panel. Bilingual mode
+   places translations in an inline column instead, so no shift needed. */
 @media (min-width: 1024px) {
-  body.auto-mode .viewer { padding-right: 360px; }
+  body.mode-side .viewer { padding-right: 360px; }
 }
 
 /* On mobile, panel becomes a bottom sheet */
