@@ -9,6 +9,7 @@ import { initTTS } from './tts.js';
 import { initTooltip, showLoading, showResult, showError } from './tooltip.js';
 import { wireUploadUI, openPdfFile, openPdfFromRecord } from './upload.js';
 import { initHistoryDrawer } from './history.js';
+import { openGalleryPaper } from './gallery.js';
 import { getDocHash } from './db.js';
 import { toast } from './toast.js';
 import { initOfflineBanner } from './offline.js';
@@ -161,6 +162,26 @@ async function handleFile(file) {
   }
 }
 
+async function handleGalleryOpen(entry) {
+  try {
+    const { docHash, hasTextLayer } = await openGalleryPaper(entry, viewer(), setLoading);
+    currentDocHash = docHash;
+    currentHasTextLayer = hasTextLayer;
+    notify('Opened: ' + entry.title, { duration: 2500 });
+    if (!hasTextLayer) {
+      notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
+    }
+    const m = getTranslateMode();
+    if (isAutoMode(m) && hasTextLayer) rescanPages();
+    if (isReaderMode(m) && hasTextLayer) rebuildReader();
+  } catch (e) {
+    console.error(e);
+    notify(`⚠️ ${e.message}`, { duration: 6000 });
+  } finally {
+    setLoading(null);
+  }
+}
+
 async function handleHistoryOpen(record) {
   try {
     const { docHash, hasTextLayer } = await openPdfFromRecord(record, viewer(), setLoading);
@@ -215,7 +236,8 @@ async function boot() {
     drawerEl: document.getElementById('historyDrawer'),
     openButton: document.getElementById('historyBtn'),
     closeButton: document.getElementById('historyClose'),
-    onOpen: handleHistoryOpen
+    onOpen: handleHistoryOpen,
+    onOpenGallery: handleGalleryOpen
   });
 
   setLoading('Loading API keys…');

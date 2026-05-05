@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "papers": [
+    {
+      "id": "attention-2017",
+      "title": "Attention Is All You Need",
+      "authors": "Vaswani et al.",
+      "year": 2017,
+      "venue": "NeurIPS",
+      "url": "https://arxiv.org/pdf/1706.03762.pdf",
+      "tags": ["foundational", "nlp", "transformer"],
+      "summary": "Introduces the Transformer architecture — pure attention, no recurrence. The single most influential ML paper of the decade.",
+      "color": "#60a5fa"
+    },
+    {
+      "id": "bert-2018",
+      "title": "BERT: Pre-training of Deep Bidirectional Transformers",
+      "authors": "Devlin et al.",
+      "year": 2018,
+      "venue": "NAACL",
+      "url": "https://arxiv.org/pdf/1810.04805.pdf",
+      "tags": ["nlp", "transformer", "pretraining"],
+      "summary": "Bidirectional pre-training with masked language modeling. Set the template for the modern NLP pipeline.",
+      "color": "#34d399"
+    },
+    {
+      "id": "gpt3-2020",
+      "title": "Language Models are Few-Shot Learners (GPT-3)",
+      "authors": "Brown et al.",
+      "year": 2020,
+      "venue": "NeurIPS",
+      "url": "https://arxiv.org/pdf/2005.14165.pdf",
+      "tags": ["nlp", "scale", "in-context"],
+      "summary": "175B-parameter language model demonstrating emergent in-context learning. The paper that kicked off the LLM era.",
+      "color": "#a78bfa"
+    },
+    {
+      "id": "resnet-2015",
+      "title": "Deep Residual Learning for Image Recognition (ResNet)",
+      "authors": "He et al.",
+      "year": 2015,
+      "venue": "CVPR",
+      "url": "https://arxiv.org/pdf/1512.03385.pdf",
+      "tags": ["vision", "foundational", "architecture"],
+      "summary": "Skip connections enabling networks 100+ layers deep. Won ImageNet 2015, made very deep nets trainable.",
+      "color": "#f87171"
+    },
+    {
+      "id": "vit-2020",
+      "title": "An Image is Worth 16x16 Words (Vision Transformer)",
+      "authors": "Dosovitskiy et al.",
+      "year": 2020,
+      "venue": "ICLR",
+      "url": "https://arxiv.org/pdf/2010.11929.pdf",
+      "tags": ["vision", "transformer"],
+      "summary": "Pure transformer for image classification, treating image patches as tokens. Closed the gap between vision and language architectures.",
+      "color": "#fbbf24"
+    },
+    {
+      "id": "clip-2021",
+      "title": "Learning Transferable Visual Models From Natural Language Supervision (CLIP)",
+      "authors": "Radford et al.",
+      "year": 2021,
+      "venue": "ICML",
+      "url": "https://arxiv.org/pdf/2103.00020.pdf",
+      "tags": ["vision", "multimodal"],
+      "summary": "Joint text-image embedding trained on 400M web pairs. Foundation for DALL·E, Stable Diffusion, and modern multimodal models.",
+      "color": "#22d3ee"
+    },
+    {
+      "id": "cot-2022",
+      "title": "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
+      "authors": "Wei et al.",
+      "year": 2022,
+      "venue": "NeurIPS",
+      "url": "https://arxiv.org/pdf/2201.11903.pdf",
+      "tags": ["nlp", "reasoning", "prompting"],
+      "summary": "Show-your-work prompting unlocks reasoning in LLMs. Spawned the agent / reasoning era.",
+      "color": "#fb7185"
+    },
+    {
+      "id": "instructgpt-2022",
+      "title": "Training language models to follow instructions (InstructGPT)",
+      "authors": "Ouyang et al.",
+      "year": 2022,
+      "venue": "NeurIPS",
+      "url": "https://arxiv.org/pdf/2203.02155.pdf",
+      "tags": ["nlp", "alignment", "rlhf"],
+      "summary": "RLHF turning a base LM into a helpful assistant. Direct ancestor of ChatGPT.",
+      "color": "#c084fc"
+    },
+    {
+      "id": "llama-2023",
+      "title": "LLaMA: Open and Efficient Foundation Language Models",
+      "authors": "Touvron et al.",
+      "year": 2023,
+      "venue": "Meta AI",
+      "url": "https://arxiv.org/pdf/2302.13971.pdf",
+      "tags": ["nlp", "open-source"],
+      "summary": "Open-weight foundation models that catalyzed the open-source LLM ecosystem.",
+      "color": "#84cc16"
+    },
+    {
+      "id": "alexnet-2012",
+      "title": "ImageNet Classification with Deep Convolutional Neural Networks (AlexNet)",
+      "authors": "Krizhevsky et al.",
+      "year": 2012,
+      "venue": "NeurIPS",
+      "url": "https://proceedings.neurips.cc/paper_files/paper/2012/file/c399862d3b9d6b76c8436e924a68c45b-Paper.pdf",
+      "tags": ["vision", "classic", "foundational"],
+      "summary": "The deep learning breakout: GPU-trained CNN crushed ImageNet 2012. Started the deep learning revolution.",
+      "color": "#f97316"
+    }
+  ]
+}

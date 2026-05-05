@@ -117,10 +117,17 @@
     <aside id="historyDrawer" class="drawer" hidden>
       <div class="drawer-panel">
         <div class="drawer-header">
-          <h2>History</h2>
+          <h2>Library</h2>
           <button id="historyClose" class="icon-btn" aria-label="Close">×</button>
         </div>
-        <div class="drawer-list"></div>
+        <div class="drawer-tabs" role="tablist">
+          <button class="drawer-tab drawer-tab-active" data-tab="library" type="button" role="tab">My Library</button>
+          <button class="drawer-tab" data-tab="discover" type="button" role="tab">Discover</button>
+        </div>
+        <div class="drawer-list" data-tab-pane="library"></div>
+        <div class="drawer-gallery" data-tab-pane="discover" hidden>
+          <div class="gallery-loading">Loading curated papers…</div>
+        </div>
       </div>
     </aside>
 

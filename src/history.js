@@ -1,15 +1,33 @@
 import { listPdfs, deletePdf } from './db.js';
+import { loadGallery } from './gallery.js';
 
 let openCallback = null;
+let openGalleryCallback = null;
+let galleryLoaded = false;
 
-export function initHistoryDrawer({ drawerEl, openButton, closeButton, onOpen }) {
+export function initHistoryDrawer({ drawerEl, openButton, closeButton, onOpen, onOpenGallery }) {
   openCallback = onOpen;
+  openGalleryCallback = onOpenGallery;
   openButton?.addEventListener('click', () => openDrawer(drawerEl));
   closeButton?.addEventListener('click', () => closeDrawer(drawerEl));
   drawerEl?.addEventListener('click', (e) => {
     if (e.target === drawerEl) closeDrawer(drawerEl);
   });
   wireSwipeToClose(drawerEl);
+  wireTabs(drawerEl);
+}
+
+function wireTabs(drawerEl) {
+  drawerEl?.querySelectorAll('.drawer-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+      drawerEl.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('drawer-tab-active', t === tab));
+      drawerEl.querySelectorAll('[data-tab-pane]').forEach(pane => {
+        pane.hidden = pane.dataset.tabPane !== target;
+      });
+      if (target === 'discover' && !galleryLoaded) renderGallery(drawerEl);
+    });
+  });
 }
 
 function wireSwipeToClose(drawerEl) {
@@ -133,6 +151,71 @@ async function renderList(drawerEl) {
     });
     list.appendChild(card);
   }
+}
+
+async function renderGallery(drawerEl) {
+  const pane = drawerEl.querySelector('[data-tab-pane="discover"]');
+  if (!pane) return;
+  pane.innerHTML = '<div class="gallery-loading">Loading curated papers…</div>';
+  let manifest;
+  try {
+    manifest = await loadGallery();
+  } catch (e) {
+    pane.innerHTML = `<div class="gallery-loading">⚠️ Failed to load gallery: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  galleryLoaded = true;
+
+  // Tag filter row
+  const tagSet = new Set();
+  manifest.papers.forEach(p => (p.tags || []).forEach(t => tagSet.add(t)));
+  const allTags = ['all', ...Array.from(tagSet).sort()];
+
+  pane.innerHTML = `
+    <div class="gallery-filters">
+      ${allTags.map(t => `<button class="gallery-tag ${t === 'all' ? 'gallery-tag-active' : ''}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')}
+    </div>
+    <div class="gallery-grid"></div>
+  `;
+
+  const grid = pane.querySelector('.gallery-grid');
+  function renderCards(filterTag) {
+    const list = filterTag && filterTag !== 'all'
+      ? manifest.papers.filter(p => (p.tags || []).includes(filterTag))
+      : manifest.papers;
+    grid.innerHTML = list.map(p => `
+      <article class="gallery-card" data-id="${escapeHtml(p.id)}" style="--card-accent: ${p.color || 'var(--accent)'}">
+        <div class="gallery-cover">
+          <span class="gallery-year">${escapeHtml(String(p.year || ''))}</span>
+        </div>
+        <h3 class="gallery-title">${escapeHtml(p.title)}</h3>
+        <p class="gallery-authors">${escapeHtml(p.authors || '')} · ${escapeHtml(p.venue || '')}</p>
+        <p class="gallery-summary">${escapeHtml(p.summary || '')}</p>
+        <div class="gallery-tags">
+          ${(p.tags || []).slice(0, 3).map(t => `<span class="gallery-tag-chip">${escapeHtml(t)}</span>`).join('')}
+        </div>
+      </article>
+    `).join('');
+    grid.querySelectorAll('.gallery-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const id = card.dataset.id;
+        const entry = manifest.papers.find(p => p.id === id);
+        if (entry && openGalleryCallback) {
+          closeDrawer(drawerEl);
+          openGalleryCallback(entry);
+        }
+      });
+    });
+  }
+
+  pane.querySelectorAll('.gallery-tag').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pane.querySelectorAll('.gallery-tag').forEach(b => b.classList.toggle('gallery-tag-active', b === btn));
+      renderCards(btn.dataset.tag);
+    });
+  });
+
+  renderCards('all');
 }
 
 function escapeHtml(s) {
