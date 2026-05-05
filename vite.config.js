@@ -13,7 +13,10 @@ export default defineConfig({
       includeAssets: ['attention.pdf', 'gemma_code.jsonl', 'icons/*.png'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,pdf,jsonl,png,webmanifest}'],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true
       },
       manifest: {
         name: 'PDF Reader — Highlight to Translate',

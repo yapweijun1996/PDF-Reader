@@ -119,7 +119,11 @@ async function boot() {
     }
   });
 
-  registerSW({ immediate: true });
+  registerSW({
+    immediate: true,
+    onNeedRefresh() { window.location.reload(); },
+    onOfflineReady() { console.log('[PWA] offline-ready'); }
+  });
 }
 
 function captureContext(selectedText) {
