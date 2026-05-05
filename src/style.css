@@ -577,6 +577,136 @@ button { font-family: inherit; }
 .toast.toast-in { opacity: 1; transform: translateY(0); }
 .toast.toast-out { opacity: 0; transform: translateY(8px); }
 
+/* -------- Auto-translate mode button -------- */
+.mode-btn-active {
+  background: var(--accent-soft) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+/* -------- Translation panel (auto-translate mode) -------- */
+.translation-panel {
+  position: fixed;
+  right: 0;
+  top: calc(var(--topbar-h) + var(--safe-top));
+  width: 340px;
+  max-width: 90vw;
+  height: calc(100vh - var(--topbar-h) - var(--safe-top));
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.3, 1);
+  z-index: 40;
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.3);
+  padding-bottom: var(--safe-bottom);
+}
+.translation-panel.panel-open {
+  transform: translateX(0);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.panel-action-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.panel-action-btn:hover { background: var(--panel-2); color: var(--text); }
+
+.panel-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.panel-empty {
+  padding: 24px 16px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  display: none;
+}
+.panel-list:empty + .panel-empty { display: block; }
+
+.translation-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  animation: card-slide-in 0.18s ease-out;
+}
+.card-source {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.card-arrow {
+  color: var(--accent);
+  font-size: 11px;
+  margin: 0 0 6px;
+}
+.card-target {
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.translation-card.card-error .card-target { color: #fca5a5; }
+
+@keyframes card-slide-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* When panel is open on wide screens, shift viewer left to make room */
+@media (min-width: 1024px) {
+  body.auto-mode .viewer { padding-right: 360px; }
+}
+
+/* On mobile, panel becomes a bottom sheet */
+@media (max-width: 1023px) {
+  .translation-panel {
+    top: auto;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    width: 100vw;
+    max-width: 100vw;
+    height: 50vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    transform: translateY(100%);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.3);
+  }
+  .translation-panel.panel-open { transform: translateY(0); }
+  body.auto-mode .viewer { padding-bottom: calc(50vh + var(--safe-bottom)); }
+}
+
 /* -------- Skeleton loader (shown before first PDF render) -------- */
 .skeleton-page {
   width: min(680px, calc(100vw - 32px));

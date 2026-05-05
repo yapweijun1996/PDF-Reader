@@ -2,6 +2,7 @@ import { get, set, del, keys } from 'idb-keyval';
 
 const PDF_PREFIX = 'pdf::';
 const EXPLAIN_PREFIX = 'explain::';
+const TRANS_PREFIX = 'trans::';
 const PDF_LIMIT = 5;
 
 export async function getDocHash(arrayBuffer) {
@@ -74,4 +75,12 @@ export async function putExplain(docHash, phrase, lang, payload) {
 
 function normalize(s) {
   return s.trim().toLowerCase().slice(0, 200);
+}
+
+export async function getTrans(docHash, segId, lang) {
+  return get(`${TRANS_PREFIX}${docHash}::${segId}::${lang}`);
+}
+
+export async function putTrans(docHash, segId, lang, text) {
+  await set(`${TRANS_PREFIX}${docHash}::${segId}::${lang}`, text);
 }

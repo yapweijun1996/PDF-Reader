@@ -2,7 +2,8 @@ import 'pdfjs-dist/web/pdf_viewer.css';
 import { renderPdf, onSelection } from './pdf-viewer.js';
 import { translate, ensureKeysLoaded } from './translator.js';
 import { explain } from './explain.js';
-import { mountLangSelector, getTargetLang } from './settings.js';
+import { mountLangSelector, getTargetLang, getTranslateMode, setTranslateMode, MODES } from './settings.js';
+import { startAutoTranslate, stopAutoTranslate, rescanPages } from './auto-translator.js';
 import { initTooltip, showLoading, showResult, showError } from './tooltip.js';
 import { wireUploadUI, openPdfFile, openPdfFromRecord } from './upload.js';
 import { initHistoryDrawer } from './history.js';
@@ -32,6 +33,28 @@ function notify(msg, opts) {
   return toast(msg, opts);
 }
 
+function autoCtx() {
+  return { docHash: currentDocHash, lang: getTargetLang() };
+}
+
+function applyMode(mode) {
+  document.body.classList.toggle('auto-mode', mode === MODES.AUTO);
+  const btn = document.getElementById('autoModeBtn');
+  if (btn) {
+    btn.classList.toggle('mode-btn-active', mode === MODES.AUTO);
+    btn.setAttribute('aria-pressed', mode === MODES.AUTO ? 'true' : 'false');
+  }
+  if (mode === MODES.AUTO) {
+    startAutoTranslate({
+      panel: document.getElementById('translationPanel'),
+      getContext: autoCtx
+    });
+    if (currentHasTextLayer) rescanPages();
+  } else {
+    stopAutoTranslate();
+  }
+}
+
 async function loadDemoPdf() {
   setLoading('Loading demo PDF…');
   try {
@@ -44,6 +67,7 @@ async function loadDemoPdf() {
     if (!hasTextLayer) {
       notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
     }
+    if (getTranslateMode() === MODES.AUTO && hasTextLayer) rescanPages();
   } finally {
     setLoading(null);
   }
@@ -59,6 +83,7 @@ async function handleFile(file) {
     } else {
       notify('Opened: ' + file.name, { duration: 2500 });
     }
+    if (getTranslateMode() === MODES.AUTO && hasTextLayer) rescanPages();
   } catch (e) {
     console.error(e);
     notify(`⚠️ ${e.message}`, { duration: 4000 });
@@ -75,6 +100,7 @@ async function handleHistoryOpen(record) {
     if (!hasTextLayer) {
       notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
     }
+    if (getTranslateMode() === MODES.AUTO && hasTextLayer) rescanPages();
   } catch (e) {
     console.error(e);
     notify(`⚠️ ${e.message}`, { duration: 4000 });
@@ -89,7 +115,21 @@ async function boot() {
     return explain(phrase, lastSelectionContext, lang, currentDocHash);
   });
 
-  mountLangSelector(document.getElementById('targetLang'));
+  mountLangSelector(document.getElementById('targetLang'), () => {
+    if (getTranslateMode() === MODES.AUTO && currentHasTextLayer) rescanPages();
+  });
+
+  document.getElementById('autoModeBtn').addEventListener('click', () => {
+    const next = getTranslateMode() === MODES.AUTO ? MODES.SELECTION : MODES.AUTO;
+    setTranslateMode(next);
+    applyMode(next);
+    notify(next === MODES.AUTO ? 'Auto-translate ON' : 'Auto-translate OFF', { duration: 1800 });
+  });
+
+  document.getElementById('panelClearBtn').addEventListener('click', () => {
+    const list = document.querySelector('#translationPanel .panel-list');
+    if (list) list.innerHTML = '';
+  });
 
   wireUploadUI({
     pickButton: document.getElementById('uploadBtn'),
@@ -115,6 +155,8 @@ async function boot() {
     console.error(e);
     notify('⚠️ Failed to load API keys — translation disabled', { duration: 6000 });
   }
+
+  applyMode(getTranslateMode());
 
   try {
     await loadDemoPdf();

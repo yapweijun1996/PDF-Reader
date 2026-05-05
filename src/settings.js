@@ -1,4 +1,5 @@
 const KEY = 'pdfReader.targetLang';
+const MODE_KEY = 'pdfReader.translateMode';
 
 export const LANGUAGES = [
   'Chinese (Simplified)',
@@ -26,7 +27,20 @@ export function setTargetLang(lang) {
   localStorage.setItem(KEY, lang);
 }
 
-export function mountLangSelector(selectEl, onChange) {
+export const MODES = {
+  SELECTION: 'selection',
+  AUTO: 'auto'
+};
+
+export function getTranslateMode() {
+  return localStorage.getItem(MODE_KEY) || MODES.SELECTION;
+}
+
+export function setTranslateMode(mode) {
+  localStorage.setItem(MODE_KEY, mode);
+}
+
+export function mountLangSelector(selectEl, onChangeExtra) {
   selectEl.innerHTML = '';
   const current = getTargetLang();
   for (const lang of LANGUAGES) {
@@ -38,6 +52,6 @@ export function mountLangSelector(selectEl, onChange) {
   }
   selectEl.addEventListener('change', () => {
     setTargetLang(selectEl.value);
-    onChange?.(selectEl.value);
+    onChangeExtra?.(selectEl.value);
   });
 }
