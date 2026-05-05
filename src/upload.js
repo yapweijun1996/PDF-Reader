@@ -23,7 +23,7 @@ export async function openPdfFile(file, viewerEl, onStatus = () => {}) {
   onStatus('Generating thumbnail…');
   let thumbnail = null;
   try {
-    thumbnail = await renderThumbnail(dataForThumb, 200);
+    thumbnail = await renderThumbnail(dataForThumb, 240);
   } catch (e) {
     console.warn('Thumbnail failed:', e);
   }

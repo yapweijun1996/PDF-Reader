@@ -85,8 +85,18 @@ async function renderList(drawerEl) {
   if (records.length === 0) {
     list.innerHTML = `
       <div class="drawer-empty">
-        <p>No history yet.</p>
-        <p>Drag a PDF onto the page or use the 📤 button to start.</p>
+        <svg class="empty-illustration" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="30" y="20" width="55" height="72" rx="4" />
+          <rect x="38" y="14" width="55" height="72" rx="4" />
+          <line x1="48" y1="32" x2="83" y2="32" />
+          <line x1="48" y1="44" x2="83" y2="44" />
+          <line x1="48" y1="56" x2="74" y2="56" />
+          <circle cx="92" cy="98" r="14" />
+          <line x1="92" y1="91" x2="92" y2="105" />
+          <line x1="85" y1="98" x2="99" y2="98" />
+        </svg>
+        <p class="empty-title">No PDFs yet</p>
+        <p class="empty-sub">Drag a PDF onto the page, or tap the upload button to start reading.</p>
       </div>`;
     return;
   }

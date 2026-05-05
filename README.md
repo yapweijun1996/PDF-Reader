@@ -9,7 +9,7 @@ PWA for reading PDFs in the browser. Highlight any text → AI auto-translates t
 - 📄 Renders any PDF with selectable text (uses [pdf.js](https://mozilla.github.io/pdf.js/))
 - 🌐 Highlight-to-translate via [Gemma 3 27B IT](https://ai.google.dev/gemma) — 15 target languages
 - 📱 Mobile responsive, installable as PWA, works offline after first load
-- 🔁 API key rotation + 429/500 retry (reuses [`sample/gemma.js`](sample/gemma.js) verbatim)
+- 🔁 API key rotation + 429/500 retry (XOR-encrypted keys in `public/gemma_code.jsonl`)
 - 🚀 GitHub Actions auto-deploy to GitHub Pages on push to `main`
 
 ## Local development
@@ -26,12 +26,12 @@ npm run preview  # preview production build
 ```
 User selects text in PDF
   → debounced 250ms
-  → src/translator.js calls callGeminiAPI() from src/gemma.js
-  → src/gemma.js rotates encrypted keys from public/gemma_code.jsonl
+  → src/translator.js calls callGeminiAPI() (loaded as classic <script> from public/gemma.js)
+  → public/gemma.js rotates encrypted keys from public/gemma_code.jsonl
   → Floating tooltip shows translation
 ```
 
-`src/gemma.js` is an unmodified copy of [`sample/gemma.js`](sample/gemma.js). All key encryption, rotation, and retry logic is reused as-is.
+`public/gemma.js` is loaded via classic `<script>` tag (not ES module) so its `var` globals attach to `window` — `translator.js` calls `window.callGeminiAPI()` directly. Reused as-is, no modifications.
 
 ## Demo PDF
 

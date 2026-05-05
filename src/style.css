@@ -278,9 +278,28 @@ button { font-family: inherit; }
 .drawer-empty {
   color: var(--muted);
   text-align: center;
-  padding: 24px 12px;
+  padding: 32px 16px;
   font-size: 13px;
   line-height: 1.6;
+}
+.empty-illustration {
+  width: 96px;
+  height: 96px;
+  color: var(--accent);
+  opacity: 0.7;
+  margin: 0 auto 12px;
+  display: block;
+}
+.empty-title {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0 0 6px;
+}
+.empty-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .history-card {
@@ -289,8 +308,8 @@ button { font-family: inherit; }
   border-radius: 12px;
   padding: 10px;
   display: grid;
-  grid-template-columns: 60px 1fr 44px;
-  gap: 10px;
+  grid-template-columns: 80px 1fr 44px;
+  gap: 12px;
   align-items: center;
   cursor: pointer;
   transition: border-color 0.15s, transform 0.1s;
@@ -299,14 +318,15 @@ button { font-family: inherit; }
 .history-card:active { transform: scale(0.98); }
 
 .history-thumb {
-  width: 60px;
-  height: 78px;
-  border-radius: 4px;
+  width: 80px;
+  height: 104px;
+  border-radius: 6px;
   overflow: hidden;
   background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 .history-thumb img {
   width: 100%;
@@ -549,3 +569,46 @@ button { font-family: inherit; }
 }
 .toast.toast-in { opacity: 1; transform: translateY(0); }
 .toast.toast-out { opacity: 0; transform: translateY(8px); }
+
+/* -------- Skeleton loader (shown before first PDF render) -------- */
+.skeleton-page {
+  width: min(680px, calc(100vw - 32px));
+  aspect-ratio: 8.5 / 11;
+  background: linear-gradient(135deg, #1f2937, #111827);
+  border-radius: 6px;
+  padding: 12% 8%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  position: relative;
+}
+.skeleton-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%);
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.skeleton-line {
+  height: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+}
+@keyframes skeleton-shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+/* -------- Respect prefers-reduced-motion -------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton-page::before { animation: none; }
+  .spinner { animation: none; border-top-color: var(--border); }
+}

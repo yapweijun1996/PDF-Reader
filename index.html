@@ -55,7 +55,17 @@
       <span>You're offline — cached PDFs and translations still work.</span>
     </div>
 
-    <main id="viewer" class="viewer" aria-label="PDF viewer"></main>
+    <main id="viewer" class="viewer" aria-label="PDF viewer">
+      <div class="skeleton-page" aria-hidden="true">
+        <div class="skeleton-line" style="width: 60%"></div>
+        <div class="skeleton-line" style="width: 90%"></div>
+        <div class="skeleton-line" style="width: 85%"></div>
+        <div class="skeleton-line" style="width: 75%"></div>
+        <div class="skeleton-line" style="width: 92%"></div>
+        <div class="skeleton-line" style="width: 80%"></div>
+        <div class="skeleton-line" style="width: 70%"></div>
+      </div>
+    </main>
 
     <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden />
 
