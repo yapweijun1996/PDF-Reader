@@ -14,6 +14,7 @@ import { getDocHash } from './db.js';
 import { toast } from './toast.js';
 import { initOfflineBanner } from './offline.js';
 import { initInstallPrompt } from './install.js';
+import { initBottomSheet } from './bottom-sheet.js';
 import { registerSW } from 'virtual:pwa-register';
 
 const viewer = () => document.getElementById('viewer');
@@ -231,6 +232,10 @@ async function boot() {
   initInstallPrompt(document.getElementById('installBtn'));
   initScrollAwareTopbar();
   initTTS();
+  initBottomSheet({
+    panel: document.getElementById('translationPanel'),
+    handle: document.getElementById('panelHandle')
+  });
 
   initHistoryDrawer({
     drawerEl: document.getElementById('historyDrawer'),

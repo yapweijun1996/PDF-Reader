@@ -1153,6 +1153,7 @@ body.mode-overlay .translation-panel.panel-open {
   flex-direction: column;
   gap: 10px;
 }
+.panel-handle { display: none; } /* hidden by default; mobile media query enables it */
 .panel-empty {
   padding: 24px 16px;
   color: var(--muted);
@@ -1205,7 +1206,7 @@ body.mode-overlay .translation-panel.panel-open {
   body.mode-side .viewer { padding-right: 360px; }
 }
 
-/* On mobile, panel becomes a bottom sheet */
+/* On mobile, panel becomes a draggable bottom sheet */
 @media (max-width: 1023px) {
   .translation-panel {
     top: auto;
@@ -1214,15 +1215,40 @@ body.mode-overlay .translation-panel.panel-open {
     bottom: 0;
     width: 100vw;
     max-width: 100vw;
-    height: 50vh;
+    height: 95vh;
     border-left: none;
     border-top: 1px solid var(--border);
     border-radius: 16px 16px 0 0;
     transform: translateY(100%);
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+    transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.3, 1);
   }
-  .translation-panel.panel-open { transform: translateY(0); }
+  .translation-panel.panel-open.snap-collapsed { transform: translateY(88vh); }
+  .translation-panel.panel-open.snap-half      { transform: translateY(50vh); }
+  .translation-panel.panel-open.snap-full      { transform: translateY(5vh);  }
+  .translation-panel.panel-open                { transform: translateY(50vh); }
+
   body.auto-mode .viewer { padding-bottom: calc(50vh + var(--safe-bottom)); }
+
+  .panel-handle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 0 6px;
+    cursor: grab;
+    touch-action: none;
+    flex-shrink: 0;
+  }
+  .panel-handle span {
+    width: 44px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    transition: background 0.15s;
+  }
+  .panel-handle:hover span { background: var(--muted); }
+  .panel-handle:active { cursor: grabbing; }
+  .panel-handle:active span { background: var(--accent); }
 
   /* Mobile Bilingual: cards routed to the bottom-sheet panel via
      auto-translator (so translations stay visible while reading). The
