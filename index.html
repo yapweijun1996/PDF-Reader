@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta name="theme-color" content="#1f2937" />
+    <title>PDF Reader — Highlight to Translate</title>
+    <link rel="icon" type="image/png" href="icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1 class="title">PDF Reader</h1>
+      <div class="topbar-actions">
+        <label class="lang-select">
+          <span class="lang-label">Translate to</span>
+          <select id="targetLang" aria-label="Target language"></select>
+        </label>
+      </div>
+    </header>
+
+    <main id="viewer" class="viewer" aria-label="PDF viewer"></main>
+
+    <div id="tooltip" class="tooltip" role="status" aria-live="polite" hidden>
+      <div class="tooltip-source" id="tooltipSource"></div>
+      <div class="tooltip-arrow">→</div>
+      <div class="tooltip-target" id="tooltipTarget"></div>
+      <button class="tooltip-close" id="tooltipClose" aria-label="Close">×</button>
+    </div>
+
+    <div id="status" class="status" aria-live="polite"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GemmaClient Chat</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%2310a37f'/><text x='50' y='68' text-anchor='middle' font-size='55' font-weight='700' fill='white' font-family='Arial'>G</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="chat.css">
+</head>
+<body>
+
+<div class="hdr">
+    <a class="link" href="index.html">&larr;</a>
+    <div class="logo">G</div>
+    <h1>GemmaClient</h1>
+    <div class="spacer"></div>
+    <div class="toggle-wrap">Tools
+        <label class="toggle"><input type="checkbox" id="toolToggle" onchange="toggleToolMode()"><span class="slider"></span></label>
+    </div>
+    <div class="toggle-wrap">Raw
+        <label class="toggle"><input type="checkbox" id="rawToggle" onchange="toggleShowRaw()"><span class="slider"></span></label>
+    </div>
+    <select id="modelSel">
+        <option value="gemma-3-27b-it">Gemma 3 27B</option>
+        <option value="gemma-3-12b-it">Gemma 3 12B</option>
+        <option value="gemma-3-4b-it">Gemma 3 4B</option>
+        <option value="gemma-3-1b-it">Gemma 3 1B</option>
+    </select>
+    <button class="btn-activity" onclick="toggleTriggerPanel()">Triggers</button>
+    <button class="btn-activity" onclick="toggleActivity()">Activity</button>
+    <button class="btn-debug" onclick="openDebugModal()">Debug</button>
+    <button onclick="clearConversation()">Clear</button>
+    <button onclick="exportConversation()" title="Export conversation">&#x2B73;</button>
+    <button onclick="importConversation()" title="Import conversation">&#x2B71;</button>
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">&#127763;</button>
+</div>
+
+<div class="content-wrap">
+    <div class="main" id="chatWrapper">
+        <div class="messages" id="messages">
+            <div class="suggestions" id="suggestions">
+                <div class="chip" data-q="Search the web for the latest AI news">&#128269; Web Search</div>
+                <div class="chip" data-q="What's the real-time weather in Kuala Lumpur and Singapore?">&#9925; Live Weather</div>
+                <div class="chip" data-q="Convert 500 USD to MYR and also to SGD">&#128177; Currency</div>
+                <div class="chip" data-q="Tell me about quantum computing using Wikipedia">&#128218; Wikipedia</div>
+                <div class="chip" data-q="What time is it right now in major cities around the world?">&#127760; World Time</div>
+                <div class="chip" data-q="What does the word 'serendipity' mean? Look it up in the dictionary.">&#128214; Dictionary</div>
+                <div class="chip" data-q="Where am I? Check my IP and location.">&#128205; My IP</div>
+                <div class="chip" data-q="Calculate (234 * 567) + 89, then convert the result from meters to feet">&#129518; Math + Convert</div>
+                <div class="chip" data-q="Tell me a joke and give me some life advice">&#128513; Joke + Advice</div>
+                <div class="chip" data-q="Geocode 'Petronas Twin Towers' and tell me its coordinates">&#128506; Geocode</div>
+            </div>
+        </div>
+    </div>
+    <div class="activity-panel" id="activityPanel">
+        <div class="activity-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Activity</span>
+            <button class="activity-close" onclick="toggleActivity()" title="Close">&times;</button>
+        </div>
+        <div class="activity-body" id="activityBody">
+            <div class="activity-empty">Agent activity will appear here.</div>
+        </div>
+    </div>
+    <!-- Trigger Management Panel -->
+    <div class="trigger-panel" id="triggerPanel">
+        <div class="activity-header">
+            <span>&#9889; Triggers</span>
+            <button class="activity-close" onclick="toggleTriggerPanel()" title="Close">&times;</button>
+        </div>
+        <div class="trigger-form">
+            <select id="triggerType">
+                <option value="schedule">Schedule (cron)</option>
+                <option value="condition">Condition</option>
+                <option value="reminder">Reminder (datetime)</option>
+            </select>
+            <input id="triggerParam" placeholder="e.g. 0 8 * * * or 2026-03-25T09:00" />
+            <input id="triggerAction" placeholder="Action: search, notify, briefing..." />
+            <button onclick="addTriggerFromForm()">Add</button>
+        </div>
+        <div id="approvalList"></div>
+        <div id="triggerList">
+            <div class="trigger-empty">No active triggers.</div>
+        </div>
+    </div>
+</div>
+
+<div id="consoleBox"></div>
+
+<div class="input-area">
+    <div class="input-inner">
+        <div class="input-box">
+            <textarea id="userInput" placeholder="Message GemmaClient..." rows="1"></textarea>
+            <button class="send-btn" id="sendBtn" disabled onclick="handleSend()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            </button>
+        </div>
+        <div class="queue-panel" id="queuePanel"></div>
+        <div class="status-footer">
+            <span><span class="dot" id="statusDot"></span><span id="statusText">Loading...</span></span>
+            <span class="sep">·</span>
+            <span id="keyInfo"></span>
+            <span class="sep">·</span>
+            <span id="modeInfo">Simple</span>
+            <span class="sep">·</span>
+            <span id="tokenInfo" title="Estimated context tokens">0 tokens</span>
+            <span class="sep">·</span>
+            <span id="saveInfo" title="Auto-save status"></span>
+            <span class="sep">·</span>
+            <span class="console-toggle" onclick="toggleConsole()">Console &#9662;</span>
+        </div>
+    </div>
+</div>
+
+<!-- Debug Modal -->
+<div class="modal-overlay" id="debugModal" onclick="if(event.target===this)closeDebugModal()">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Debug Inspector</h2>
+            <button class="modal-close" onclick="closeDebugModal()">&times;</button>
+        </div>
+        <div class="modal-tabs" id="debugTabs">
+            <div class="modal-tab active" data-tab="all">All</div>
+            <div class="modal-tab" data-tab="oodae">OODA-E</div>
+            <div class="modal-tab" data-tab="request">Request</div>
+            <div class="modal-tab" data-tab="response">Response</div>
+            <div class="modal-tab" data-tab="history">History</div>
+            <div class="modal-tab" data-tab="tools">Tools</div>
+            <div class="modal-tab" data-tab="memory">Memory</div>
+            <div class="modal-tab" data-tab="keys">Keys</div>
+        </div>
+        <div class="modal-body" id="debugBody"></div>
+    </div>
+</div>
+
+<!-- Markdown renderer -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<!-- Scripts: load order matters -->
+<script src="dist/gemma_client.js?v=8"></script>
+<script src="chat_memory.js?v=4"></script>
+<!-- chat_tools.js split into focused modules -->
+<script src="tools_search.js?v=4"></script>
+<script src="tools_data.js?v=4"></script>
+<script src="tools_compute.js?v=4"></script>
+<script src="tools_language.js?v=4"></script>
+<script src="tools_memory.js?v=4"></script>
+<script src="tools_knowledge.js?v=1"></script>
+<script src="chat_tools.js?v=4"></script>
+<script src="chat_debug.js?v=4"></script>
+<!-- chat_app.js split into focused modules -->
+<script src="chat_utils.js?v=4"></script>
+<script src="chat_activity.js?v=4"></script>
+<script src="chat_message.js?v=4"></script>
+<script src="chat_context.js?v=4"></script>
+<script src="chat_ui.js?v=4"></script>
+<script src="chat_send.js?v=4"></script>
+<script src="chat_queue.js?v=4"></script>
+<script src="chat_proactive.js?v=5"></script>
+<script src="chat_app.js?v=4"></script>
+
+</body>
+</html>

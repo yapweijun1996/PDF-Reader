@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>API Stress Test</title>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #111318;
+            color: #e0e6f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 16px;
+        }
+
+        /* ── Header ── */
+        h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #7dd3fc;
+            margin-bottom: 28px;
+            letter-spacing: 0.02em;
+        }
+
+        /* ── Control card ── */
+        .card {
+            background: #1a1d27;
+            border: 1px solid #2a2d3a;
+            border-radius: 14px;
+            padding: 20px 24px;
+            width: 100%;
+            max-width: 560px;
+            margin-bottom: 20px;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex: 1;
+            min-width: 90px;
+        }
+
+        .field label {
+            font-size: 0.72rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+        }
+
+        .field input,
+        .field select {
+            background: #111318;
+            border: 1px solid #2a2d3a;
+            color: #e0e6f0;
+            border-radius: 8px;
+            padding: 8px 11px;
+            font-size: 0.9rem;
+            width: 100%;
+            outline: none;
+            transition: border-color .15s;
+        }
+
+        .field input:focus,
+        .field select:focus {
+            border-color: #7dd3fc;
+        }
+
+        .btn-run {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 9px 24px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .15s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .btn-run:hover:not(:disabled) {
+            background: #1d4ed8;
+        }
+
+        .btn-run:disabled {
+            background: #2a2d3a;
+            color: #4b5563;
+            cursor: not-allowed;
+        }
+
+        .btn-stop {
+            background: transparent;
+            color: #f87171;
+            border: 1px solid #f87171;
+            border-radius: 8px;
+            padding: 9px 18px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .15s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .btn-stop:hover:not(:disabled) {
+            background: #f871711a;
+        }
+
+        .btn-stop:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* ── Stats ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            width: 100%;
+            max-width: 560px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            background: #1a1d27;
+            border: 1px solid #2a2d3a;
+            border-radius: 12px;
+            padding: 14px 10px;
+            text-align: center;
+        }
+
+        .stat .val {
+            font-size: 1.8rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .stat .lbl {
+            font-size: 0.68rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-top: 5px;
+        }
+
+        .stat.ok .val {
+            color: #4ade80;
+        }
+
+        .stat.err .val {
+            color: #f87171;
+        }
+
+        .stat.rot .val {
+            color: #fbbf24;
+        }
+
+        .stat.spd .val {
+            color: #7dd3fc;
+        }
+
+        /* ── Progress ── */
+        .progress-wrap {
+            width: 100%;
+            max-width: 560px;
+            margin-bottom: 8px;
+        }
+
+        .progress-track {
+            background: #1a1d27;
+            border-radius: 99px;
+            height: 8px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+
+        #progressBar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #2563eb, #7dd3fc);
+            border-radius: 99px;
+            transition: width .25s ease;
+        }
+
+        #statusText {
+            font-size: 0.78rem;
+            color: #6b7280;
+            text-align: right;
+        }
+
+        /* ── Log ── */
+        .log-wrap {
+            width: 100%;
+            max-width: 560px;
+            background: #1a1d27;
+            border: 1px solid #2a2d3a;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .log-head {
+            display: grid;
+            grid-template-columns: 36px 48px 1fr 54px 70px;
+            gap: 8px;
+            padding: 8px 14px;
+            font-size: 0.67rem;
+            color: #4b5563;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            border-bottom: 1px solid #2a2d3a;
+        }
+
+        #logList {
+            max-height: 380px;
+            overflow-y: auto;
+        }
+
+        #logList::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #logList::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #logList::-webkit-scrollbar-thumb {
+            background: #2a2d3a;
+            border-radius: 2px;
+        }
+
+        .log-row {
+            display: grid;
+            grid-template-columns: 36px 48px 1fr 54px 70px;
+            gap: 8px;
+            padding: 7px 14px;
+            border-bottom: 1px solid #1e2130;
+            font-size: 0.8rem;
+            align-items: center;
+        }
+
+        .log-row:last-child {
+            border-bottom: none;
+        }
+
+        .log-row.ok-row {
+            border-left: 3px solid #4ade80;
+        }
+
+        .log-row.err-row {
+            border-left: 3px solid #f87171;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 0.67rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .pill.ok {
+            background: #14532d44;
+            color: #4ade80;
+        }
+
+        .pill.err {
+            background: #7f1d1d44;
+            color: #f87171;
+        }
+
+        .msg {
+            color: #9ca3af;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .ms {
+            color: #6b7280;
+            text-align: right;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>⚡ API Stress Test</h1>
+
+    <!-- Controls -->
+    <div class="card">
+        <div class="row">
+            <div class="field">
+                <label>Requests</label>
+                <input type="number" id="totalReqs" value="100" min="1" max="500" />
+            </div>
+            <div class="field">
+                <label>Concurrency</label>
+                <input type="number" id="concurrency" value="3" min="1" max="10" />
+            </div>
+            <div class="field">
+                <label>Model</label>
+                <select id="modelSel">
+                    <option value="gemma-3-27b-it" selected>gemma-3-27b-it</option>
+                </select>
+            </div>
+            <button class="btn-run" id="runBtn" onclick="startTest()">▶ Run</button>
+            <button class="btn-stop" id="stopBtn" disabled onclick="stopTest()">■ Stop</button>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat ok">
+            <div class="val" id="sOk">0</div>
+            <div class="lbl">Success</div>
+        </div>
+        <div class="stat err">
+            <div class="val" id="sErr">0</div>
+            <div class="lbl">Errors</div>
+        </div>
+        <div class="stat rot">
+            <div class="val" id="sRot">0</div>
+            <div class="lbl">Rotations</div>
+        </div>
+        <div class="stat spd">
+            <div class="val" id="sSpd">—</div>
+            <div class="lbl">Avg ms</div>
+        </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-wrap">
+        <div class="progress-track">
+            <div id="progressBar"></div>
+        </div>
+        <div id="statusText">Ready</div>
+    </div>
+
+    <!-- Log -->
+    <div class="log-wrap" style="margin-top:14px">
+        <div class="log-head">
+            <span>#</span><span>Status</span><span>Response</span><span>Key</span><span>Time</span>
+        </div>
+        <div id="logList"></div>
+    </div>
+
+    <script src="./gemma.js"></script>
+    <script>
+        let aborted = false, totalOk = 0, totalErr = 0, totalRot = 0, totalTimes = [];
+
+        // Patch rotateKey to count
+        const _origRotate = rotateKey;
+        window.rotateKey = function () {
+            _origRotate();
+            totalRot++;
+            document.getElementById("sRot").textContent = totalRot;
+        };
+
+        async function singleRequest(seq, model) {
+            const maxAttempts = apiKeys.length || 1;
+            let lastError = null;
+            const t0 = performance.now();
+
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                if (aborted) throw new Error("Aborted");
+                const key = getCurrentKey();
+                const keyLabel = `#${currentKeyIndex + 1}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+                try {
+                    const res = await fetchWithRetry(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            contents: [{ role: "user", parts: [{ text: "Reply with just the number 1." }] }],
+                            generationConfig: { maxOutputTokens: 8, temperature: 0 }
+                        })
+                    });
+                    const elapsed = Math.round(performance.now() - t0);
+                    if (!res.ok) {
+                        const txt = await res.text();
+                        lastError = new Error(`HTTP ${res.status}: ${txt.slice(0, 80)}`);
+                        rotateKey(); continue;
+                    }
+                    const json = await res.json();
+                    const reply = json.candidates?.[0]?.content?.parts?.[0]?.text || "(ok)";
+                    return { ok: true, seq, keyLabel, elapsed, msg: reply.trim().slice(0, 50) };
+                } catch (err) {
+                    if (err.message === "Aborted") throw err;
+                    lastError = err; rotateKey();
+                }
+            }
+            return { ok: false, seq, keyLabel: `#${currentKeyIndex + 1}`, elapsed: Math.round(performance.now() - t0), msg: lastError?.message || "All keys failed" };
+        }
+
+        async function runPool(total, concurrency, model) {
+            const queue = Array.from({ length: total }, (_, i) => i + 1);
+            let inFlight = 0, idx = 0;
+            await new Promise(resolve => {
+                function next() {
+                    while (inFlight < concurrency && idx < queue.length) {
+                        if (aborted) { resolve(); return; }
+                        const seq = queue[idx++]; inFlight++;
+                        singleRequest(seq, model)
+                            .then(r => logResult(r, total))
+                            .catch(e => logResult({ ok: false, seq, elapsed: 0, msg: e.message }, total))
+                            .finally(() => { inFlight--; if (inFlight === 0 && idx >= queue.length) resolve(); else next(); });
+                    }
+                }
+                next();
+            });
+        }
+
+        function logResult(r, total) {
+            if (r.ok) { totalOk++; totalTimes.push(r.elapsed); } else totalErr++;
+            const done = totalOk + totalErr;
+            const pct = Math.round((done / total) * 100);
+
+            document.getElementById("sOk").textContent = totalOk;
+            document.getElementById("sErr").textContent = totalErr;
+            const avg = totalTimes.length ? Math.round(totalTimes.reduce((a, b) => a + b, 0) / totalTimes.length) : "—";
+            document.getElementById("sSpd").textContent = avg;
+            document.getElementById("progressBar").style.width = pct + "%";
+            document.getElementById("statusText").textContent = `${done} / ${total}`;
+
+            const row = document.createElement("div");
+            row.className = "log-row " + (r.ok ? "ok-row" : "err-row");
+            row.innerHTML = `
+        <span>${r.seq}</span>
+        <span><span class="pill ${r.ok ? 'ok' : 'err'}">${r.ok ? "OK" : "ERR"}</span></span>
+        <span class="msg">${esc(r.msg)}</span>
+        <span class="ms" style="color:#7dd3fc">Key ${r.keyLabel || "?"}</span>
+        <span class="ms">${r.elapsed} ms</span>
+      `;
+            const list = document.getElementById("logList");
+            list.appendChild(row);
+            list.scrollTop = list.scrollHeight;
+        }
+
+        async function startTest() {
+            aborted = false; totalOk = 0; totalErr = 0; totalRot = 0; totalTimes = [];
+            currentKeyIndex = 0;
+            document.getElementById("logList").innerHTML = "";
+            document.getElementById("progressBar").style.width = "0%";
+            document.getElementById("statusText").textContent = "Loading keys…";
+            ["sOk", "sErr", "sRot"].forEach(id => document.getElementById(id).textContent = "0");
+            document.getElementById("sSpd").textContent = "—";
+            document.getElementById("runBtn").disabled = true;
+            document.getElementById("stopBtn").disabled = false;
+
+            await loadApiKeys();
+            if (!apiKeys.length) {
+                document.getElementById("statusText").textContent = "❌ No keys loaded";
+                document.getElementById("runBtn").disabled = false;
+                document.getElementById("stopBtn").disabled = true;
+                return;
+            }
+
+            const total = parseInt(document.getElementById("totalReqs").value) || 100;
+            const concurrency = parseInt(document.getElementById("concurrency").value) || 3;
+            const model = document.getElementById("modelSel").value;
+
+            await runPool(total, concurrency, model);
+
+            document.getElementById("statusText").textContent =
+                aborted ? `⛔ Stopped — ${totalOk} OK / ${totalErr} Err` : `✅ Done — ${totalOk} OK / ${totalErr} Err / ${totalRot} Rotations`;
+            document.getElementById("runBtn").disabled = false;
+            document.getElementById("stopBtn").disabled = true;
+        }
+
+        function stopTest() { aborted = true; document.getElementById("stopBtn").disabled = true; }
+        function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+    </script>
+</body>
+
+</html>

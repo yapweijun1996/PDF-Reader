@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemma Tool Use Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
+            --border: #30363d; --text: #c9d1d9; --text2: #8b949e;
+            --accent: #58a6ff; --green: #3fb950; --red: #f85149;
+            --amber: #d29922; --purple: #bc8cff;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
+
+        /* Header */
+        .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 12px; }
+        .header .icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--purple), var(--accent)); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .header h1 { font-size: 16px; font-weight: 600; }
+        .header .badge { font-size: 11px; background: var(--purple); color: #fff; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+        .header .spacer { flex: 1; }
+        .header select, .header button { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+        .header button:hover { border-color: var(--accent); }
+        .back-link { color: var(--text2); text-decoration: none; font-size: 13px; }
+        .back-link:hover { color: var(--accent); }
+
+        /* Main layout */
+        .main { flex: 1; display: flex; overflow: hidden; }
+
+        /* Tool panel */
+        .tool-panel { width: 280px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+        .tool-panel-title { padding: 16px; font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        .tool-card { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+        .tool-card .name { font-weight: 600; font-size: 13px; color: var(--purple); }
+        .tool-card .desc { font-size: 12px; color: var(--text2); margin-top: 4px; }
+        .tool-card .params { margin-top: 6px; font-size: 11px; color: var(--text2); font-family: monospace; }
+
+        /* Chat area */
+        .chat-area { flex: 1; display: flex; flex-direction: column; }
+        .messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+
+        /* Message bubbles */
+        .msg { max-width: 80%; padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.6; animation: fadeUp 0.3s ease; }
+        .msg.user { align-self: flex-end; background: rgba(88, 166, 255, 0.15); border: 1px solid rgba(88, 166, 255, 0.3); }
+        .msg.model { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
+        .msg.tool-call { align-self: flex-start; background: rgba(210, 153, 34, 0.1); border: 1px solid rgba(210, 153, 34, 0.3); max-width: 90%; }
+        .msg.tool-result { align-self: flex-start; background: rgba(63, 185, 80, 0.1); border: 1px solid rgba(63, 185, 80, 0.3); max-width: 90%; }
+        .msg .label { font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }
+        .msg.tool-call .label { color: var(--amber); }
+        .msg.tool-result .label { color: var(--green); }
+        .msg pre { background: var(--bg); padding: 8px 12px; border-radius: 6px; overflow-x: auto; font-size: 12px; margin-top: 6px; white-space: pre-wrap; word-break: break-word; }
+        .msg.model p { margin-bottom: 8px; }
+        .msg.model p:last-child { margin-bottom: 0; }
+        .msg.model code { background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+
+        .thinking { align-self: flex-start; color: var(--text2); font-size: 13px; display: flex; align-items: center; gap: 8px; }
+        .thinking .dots span { animation: blink 1.4s infinite; }
+        .thinking .dots span:nth-child(2) { animation-delay: 0.2s; }
+        .thinking .dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0%,80%,100% { opacity: 0.2; } 40% { opacity: 1; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Suggestions */
+        .suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 24px; }
+        .chip { background: var(--surface); border: 1px solid var(--border); padding: 8px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; color: var(--text); transition: all 0.2s; }
+        .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Input area */
+        .input-area { padding: 16px 24px; border-top: 1px solid var(--border); background: var(--surface); display: flex; gap: 12px; }
+        .input-area input { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px 16px; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; }
+        .input-area input:focus { border-color: var(--accent); }
+        .input-area button { background: var(--accent); color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .input-area button:hover:not(:disabled) { filter: brightness(1.1); }
+
+        /* Status bar */
+        .status-bar { padding: 6px 24px; background: var(--surface2); border-top: 1px solid var(--border); font-size: 11px; color: var(--text2); display: flex; gap: 16px; }
+        .status-bar .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+        .status-bar .dot.green { background: var(--green); }
+        .status-bar .dot.red { background: var(--red); }
+
+        @media (max-width: 768px) {
+            .tool-panel { display: none; }
+            .msg { max-width: 95%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <a href="index.html" class="back-link">&larr; Dashboard</a>
+    <div class="icon">&#9874;</div>
+    <h1>Gemma Tool Use</h1>
+    <span class="badge">Function Calling</span>
+    <div class="spacer"></div>
+    <select id="modelSel">
+        <option value="gemma-3-27b-it">gemma-3-27b-it</option>
+        <option value="gemma-3-12b-it">gemma-3-12b-it</option>
+        <option value="gemma-3-4b-it">gemma-3-4b-it</option>
+        <option value="gemma-3-1b-it">gemma-3-1b-it</option>
+    </select>
+    <button id="clearBtn" title="New conversation">Clear</button>
+</div>
+
+<div class="main">
+    <div class="tool-panel">
+        <div class="tool-panel-title">Registered Tools</div>
+        <div id="toolList"></div>
+    </div>
+
+    <div class="chat-area">
+        <div class="messages" id="messages">
+            <div class="suggestions" id="suggestions">
+                <div class="chip" data-q="What's the weather like in Tokyo right now?">Weather in Tokyo</div>
+                <div class="chip" data-q="Calculate (234 * 567) + 89 and give me the result">Calculate (234*567)+89</div>
+                <div class="chip" data-q="What time is it in New York, London, and Tokyo?">World clocks</div>
+                <div class="chip" data-q="What's the weather in Paris? Also calculate a 15% tip on $85.">Weather + Tip calc</div>
+                <div class="chip" data-q="Search for information about quantum computing">Search quantum computing</div>
+            </div>
+        </div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Ask something that requires tools..." autocomplete="off">
+            <button id="sendBtn">Send</button>
+        </div>
+        <div class="status-bar">
+            <span><span class="dot" id="statusDot"></span> <span id="statusText">Loading keys...</span></span>
+            <span id="keyInfo"></span>
+            <span id="iterInfo"></span>
+        </div>
+    </div>
+</div>
+
+<script src="gemma_client/dist/gemma_client.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    const { GemmaAPI, KeyManager, ToolRegistry, ToolRunner } = GemmaClient;
+
+    // --- Setup ---
+    const keyManager = new KeyManager({ rotateEveryN: 5, seed: '20250710' });
+    const api = new GemmaAPI({ keyManager });
+    const registry = new ToolRegistry();
+    let runner = null;
+    let chatHistory = [];
+    let busy = false;
+
+    const $messages = document.getElementById('messages');
+    const $input = document.getElementById('userInput');
+    const $sendBtn = document.getElementById('sendBtn');
+    const $clearBtn = document.getElementById('clearBtn');
+    const $modelSel = document.getElementById('modelSel');
+    const $statusDot = document.getElementById('statusDot');
+    const $statusText = document.getElementById('statusText');
+    const $keyInfo = document.getElementById('keyInfo');
+    const $iterInfo = document.getElementById('iterInfo');
+    const $toolList = document.getElementById('toolList');
+    const $suggestions = document.getElementById('suggestions');
+
+    // --- Register demo tools ---
+
+    registry.add({
+        name: 'get_weather',
+        description: 'Get current weather information for a city',
+        parameters: {
+            location: { type: 'string', required: true, description: 'City name, e.g. "Tokyo"' },
+            unit: { type: 'string', required: false, description: '"celsius" or "fahrenheit"', default: 'celsius', enum: ['celsius', 'fahrenheit'] }
+        },
+        handler: async function (args) {
+            // Mock weather data
+            const data = {
+                'tokyo': { temp: 22, condition: 'Partly Cloudy', humidity: 65, wind: '12 km/h NE' },
+                'london': { temp: 14, condition: 'Overcast', humidity: 78, wind: '18 km/h W' },
+                'paris': { temp: 18, condition: 'Sunny', humidity: 55, wind: '8 km/h SW' },
+                'new york': { temp: 25, condition: 'Clear', humidity: 42, wind: '10 km/h SE' },
+                'sydney': { temp: 19, condition: 'Rain', humidity: 82, wind: '22 km/h S' },
+                'singapore': { temp: 31, condition: 'Thunderstorm', humidity: 88, wind: '6 km/h E' },
+                'beijing': { temp: 16, condition: 'Hazy', humidity: 60, wind: '14 km/h N' },
+                'kuala lumpur': { temp: 32, condition: 'Partly Cloudy', humidity: 85, wind: '5 km/h SE' },
+            };
+            const key = args.location.toLowerCase();
+            const w = data[key] || { temp: 20 + Math.floor(Math.random() * 15), condition: 'Clear', humidity: 50 + Math.floor(Math.random() * 30), wind: Math.floor(Math.random() * 20) + ' km/h' };
+            let temp = w.temp;
+            let unit = args.unit || 'celsius';
+            if (unit === 'fahrenheit') temp = Math.round(temp * 9 / 5 + 32);
+            return { location: args.location, temperature: temp, unit: unit, condition: w.condition, humidity: w.humidity + '%', wind: w.wind };
+        }
+    });
+
+    registry.add({
+        name: 'calculate',
+        description: 'Evaluate a mathematical expression and return the result',
+        parameters: {
+            expression: { type: 'string', required: true, description: 'Math expression, e.g. "(234 * 567) + 89"' }
+        },
+        handler: async function (args) {
+            const expr = args.expression.replace(/[^0-9+\-*/().%\s]/g, '');
+            if (!expr) return { error: 'Invalid expression' };
+            try {
+                const result = Function('"use strict"; return (' + expr + ')')();
+                return { expression: args.expression, result: result };
+            } catch (e) {
+                return { error: 'Failed to evaluate: ' + e.message };
+            }
+        }
+    });
+
+    registry.add({
+        name: 'get_time',
+        description: 'Get the current date and time for a timezone',
+        parameters: {
+            timezone: { type: 'string', required: true, description: 'IANA timezone, e.g. "America/New_York", "Asia/Tokyo"' }
+        },
+        handler: async function (args) {
+            try {
+                const now = new Date();
+                const formatted = now.toLocaleString('en-US', { timeZone: args.timezone, dateStyle: 'full', timeStyle: 'long' });
+                return { timezone: args.timezone, datetime: formatted };
+            } catch {
+                return { timezone: args.timezone, datetime: new Date().toISOString(), note: 'Timezone not recognized, showing UTC' };
+            }
+        }
+    });
+
+    registry.add({
+        name: 'search_knowledge',
+        description: 'Search a knowledge base for information on a topic',
+        parameters: {
+            query: { type: 'string', required: true, description: 'Search query' },
+            max_results: { type: 'number', required: false, description: 'Max results to return', default: 3 }
+        },
+        handler: async function (args) {
+            // Mock search results
+            const results = [
+                { title: 'Overview of ' + args.query, snippet: 'A comprehensive introduction to ' + args.query + ' covering fundamentals, history, and recent developments.', source: 'encyclopedia' },
+                { title: args.query + ' — Key Concepts', snippet: 'The most important concepts in ' + args.query + ' include theoretical foundations, practical applications, and emerging trends.', source: 'textbook' },
+                { title: 'Recent Advances in ' + args.query, snippet: 'Latest research in ' + args.query + ' shows promising developments in multiple sub-fields with significant industry impact.', source: 'journal' },
+            ];
+            return { query: args.query, results: results.slice(0, args.max_results || 3) };
+        }
+    });
+
+    // --- Render tool panel ---
+    function renderToolPanel() {
+        $toolList.innerHTML = registry.list().map(t => `
+            <div class="tool-card">
+                <div class="name">${esc(t.name)}</div>
+                <div class="desc">${esc(t.description)}</div>
+                <div class="params">${Object.entries(t.parameters).map(([n, p]) =>
+                    `${n}: ${p.type}${p.required ? '*' : ''}`
+                ).join(', ')}</div>
+            </div>
+        `).join('');
+    }
+
+    // --- Helpers ---
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function addMessage(type, content) {
+        if ($suggestions) $suggestions.style.display = 'none';
+        const div = document.createElement('div');
+        div.className = 'msg ' + type;
+        div.innerHTML = content;
+        $messages.appendChild(div);
+        $messages.scrollTop = $messages.scrollHeight;
+        return div;
+    }
+
+    function showThinking(text) {
+        const div = document.createElement('div');
+        div.className = 'thinking';
+        div.id = 'thinkingIndicator';
+        div.innerHTML = `${esc(text)} <span class="dots"><span>.</span><span>.</span><span>.</span></span>`;
+        $messages.appendChild(div);
+        $messages.scrollTop = $messages.scrollHeight;
+        return div;
+    }
+
+    function removeThinking() {
+        const el = document.getElementById('thinkingIndicator');
+        if (el) el.remove();
+    }
+
+    function simpleMarkdown(text) {
+        return esc(text)
+            .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
+    }
+
+    function setStatus(ok, text) {
+        $statusDot.className = 'dot ' + (ok ? 'green' : 'red');
+        $statusText.textContent = text;
+    }
+
+    // --- Send message ---
+    async function handleSend() {
+        const text = $input.value.trim();
+        if (!text || busy) return;
+
+        busy = true;
+        $sendBtn.disabled = true;
+        $input.value = '';
+
+        addMessage('user', esc(text));
+        showThinking('Thinking');
+
+        try {
+            const result = await runner.run(text, {
+                chatHistory: chatHistory,
+                model: $modelSel.value,
+                onToolCall: function (call) {
+                    removeThinking();
+                    addMessage('tool-call',
+                        `<div class="label">&#9874; Tool Call: ${esc(call.name)}</div>` +
+                        `<pre>${esc(JSON.stringify(call.arguments, null, 2))}</pre>`
+                    );
+                    showThinking('Executing ' + call.name);
+                },
+                onToolResult: function (call, res) {
+                    removeThinking();
+                    const isError = !!res.error;
+                    addMessage('tool-result',
+                        `<div class="label">${isError ? '&#10060;' : '&#9989;'} Result: ${esc(call.name)}</div>` +
+                        `<pre>${esc(JSON.stringify(res.error || res.result, null, 2))}</pre>`
+                    );
+                    showThinking('Analyzing results');
+                },
+                onModelReply: function (text, iter) {
+                    $iterInfo.textContent = 'Iteration: ' + (iter + 1);
+                }
+            });
+
+            removeThinking();
+            // Show final response (strip any remaining tool_call tags)
+            const cleaned = GemmaClient.stripToolCalls(result.response);
+            addMessage('model', simpleMarkdown(cleaned));
+
+            $iterInfo.textContent = `Iterations: ${result.iterations} | Tools used: ${result.toolCalls.length}`;
+
+        } catch (err) {
+            removeThinking();
+            addMessage('model', `<span style="color:var(--red)">Error: ${esc(err.message)}</span>`);
+        }
+
+        busy = false;
+        $sendBtn.disabled = false;
+        $input.focus();
+    }
+
+    // --- Events ---
+    $sendBtn.addEventListener('click', handleSend);
+    $input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    });
+    $clearBtn.addEventListener('click', function () {
+        chatHistory = [];
+        $messages.innerHTML = '';
+        $suggestions.style.display = 'flex';
+        $messages.appendChild($suggestions);
+        $iterInfo.textContent = '';
+    });
+    $suggestions.addEventListener('click', function (e) {
+        const chip = e.target.closest('.chip');
+        if (chip) { $input.value = chip.dataset.q; handleSend(); }
+    });
+
+    // --- Init ---
+    renderToolPanel();
+
+    keyManager.loadFromJSONL('./gemma_code.jsonl').then(function (count) {
+        runner = new ToolRunner(api, registry, { maxIterations: 5 });
+        setStatus(true, 'Ready');
+        $keyInfo.textContent = count + ' keys loaded';
+        $sendBtn.disabled = false;
+    }).catch(function (err) {
+        setStatus(false, 'Key load failed: ' + err.message);
+    });
+})();
+</script>
+</body>
+</html>

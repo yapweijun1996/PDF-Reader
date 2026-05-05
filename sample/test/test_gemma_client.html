@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gemma_client Tests</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; padding: 24px; line-height: 1.6; }
+        h1 { color: #bc8cff; margin-bottom: 8px; }
+        .subtitle { color: #8b949e; margin-bottom: 24px; }
+        .test-group { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
+        .test-group-title { background: #21262d; padding: 12px 16px; font-weight: 600; color: #f0f6fc; font-size: 14px; border-bottom: 1px solid #30363d; }
+        .test-item { padding: 10px 16px; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 12px; font-size: 13px; }
+        .test-item:last-child { border-bottom: none; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; min-width: 48px; text-align: center; }
+        .pass { background: #23863620; color: #3fb950; border: 1px solid #23863640; }
+        .fail { background: #f8514920; color: #f85149; border: 1px solid #f8514940; }
+        .test-name { flex: 1; }
+        .test-detail { color: #8b949e; font-size: 12px; font-family: monospace; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .summary { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; margin-bottom: 24px; display: flex; gap: 24px; }
+        .summary-item { text-align: center; }
+        .summary-num { font-size: 28px; font-weight: 700; }
+        .summary-label { font-size: 12px; color: #8b949e; }
+        .green { color: #3fb950; } .red { color: #f85149; } .blue { color: #58a6ff; } .purple { color: #bc8cff; }
+        #log { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; margin-top: 16px; color: #8b949e; }
+    </style>
+</head>
+<body>
+    <h1>gemma_client Test Suite</h1>
+    <p class="subtitle">Testing core.js, client.js, and tools.js modules</p>
+
+    <div class="summary">
+        <div class="summary-item"><div class="summary-num blue" id="totalNum">0</div><div class="summary-label">Total</div></div>
+        <div class="summary-item"><div class="summary-num green" id="passNum">0</div><div class="summary-label">Passed</div></div>
+        <div class="summary-item"><div class="summary-num red" id="failNum">0</div><div class="summary-label">Failed</div></div>
+    </div>
+
+    <div id="results"></div>
+    <div id="log"></div>
+
+    <script src="../gemma_client/dist/gemma_client.js"></script>
+    <script>
+    (function () {
+        'use strict';
+
+        const { encryptKey, decryptKey, KeyManager, sleep, fetchWithRetry,
+                GemmaAPI, ToolRegistry, ToolRunner, parseToolCalls, hasToolCalls, stripToolCalls } = GemmaClient;
+
+        const allResults = [];
+        let total = 0, passed = 0, failed = 0;
+
+        function log(msg) { document.getElementById('log').textContent += msg + '\n'; }
+
+        function assert(cond, name, detail) {
+            total++;
+            if (cond) { passed++; allResults.push({ name, status: 'pass', detail: detail || '' }); log('[PASS] ' + name); }
+            else { failed++; allResults.push({ name, status: 'fail', detail: detail || '' }); log('[FAIL] ' + name + ' — ' + (detail || '')); }
+        }
+
+        function eq(a, b, name) { assert(a === b, name, a === b ? '' : 'expected: ' + b + ', got: ' + a); }
+
+        function assertThrows(fn, name) {
+            total++;
+            try { fn(); failed++; allResults.push({ name, status: 'fail', detail: 'should have thrown' }); }
+            catch (e) { passed++; allResults.push({ name, status: 'pass', detail: 'threw: ' + e.message }); }
+        }
+
+        async function assertRejects(fn, name) {
+            total++;
+            try { await fn(); failed++; allResults.push({ name, status: 'fail', detail: 'should have rejected' }); }
+            catch (e) { passed++; allResults.push({ name, status: 'pass', detail: 'rejected: ' + e.message }); }
+        }
+
+        // =============================================
+        // GROUP 1: Encryption / Decryption
+        // =============================================
+
+        function testEncryption() {
+            log('\n--- 1. Encryption / Decryption ---');
+            const seed = '20250710';
+
+            // Round-trip
+            const original = 'AIzaSyTestKey12345';
+            eq(decryptKey(encryptKey(original, seed), seed), original, 'Round-trip basic string');
+
+            // Empty string
+            eq(decryptKey(encryptKey('', seed), seed), '', 'Round-trip empty string');
+
+            // Long string
+            const long = 'X'.repeat(200);
+            eq(decryptKey(encryptKey(long, seed), seed), long, 'Round-trip 200-char string');
+
+            // Special chars
+            const special = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+            eq(decryptKey(encryptKey(special, seed), seed), special, 'Round-trip special characters');
+
+            // Output is all digits
+            assert(/^\d*$/.test(encryptKey('test', seed)), 'Ciphertext is all digits');
+
+            // Output length = bytes * 3
+            eq(encryptKey('Hello', seed).length, 15, 'Ciphertext length = bytes × 3');
+
+            // Deterministic
+            eq(encryptKey('abc', seed), encryptKey('abc', seed), 'Same input = same output');
+
+            // Different keys produce different ciphertext
+            assert(encryptKey('abcd', 'key1') !== encryptKey('abcd', 'key2'), 'Different keys → different ciphertext');
+
+            // Wrong key produces wrong result
+            assert(decryptKey(encryptKey('secret', 'right'), 'wrong') !== 'secret', 'Wrong key → wrong plaintext');
+        }
+
+        // =============================================
+        // GROUP 2: KeyManager
+        // =============================================
+
+        function testKeyManager() {
+            log('\n--- 2. KeyManager ---');
+
+            // Constructor defaults
+            const km = new KeyManager();
+            eq(km.rotateEveryN, 5, 'Default rotateEveryN = 5');
+            eq(km.seed, '20250710', 'Default seed');
+            eq(km.count, 0, 'Empty keys initially');
+
+            // addKey
+            km.addKey('key_A');
+            km.addKey('key_B');
+            km.addKey('key_C');
+            eq(km.count, 3, 'After adding 3 keys');
+
+            // current() returns first key
+            km.index = 0;
+            km.useCount = 0;
+            eq(km.current(), 'key_A', 'First current() = key_A');
+
+            // Manual rotate
+            km.rotate();
+            eq(km.keys[km.index], 'key_B', 'After rotate → key_B');
+            km.rotate();
+            eq(km.keys[km.index], 'key_C', 'After rotate → key_C');
+            km.rotate();
+            eq(km.keys[km.index], 'key_A', 'Wrap around → key_A');
+
+            // Proactive rotation
+            const km2 = new KeyManager({ rotateEveryN: 3 });
+            km2.addKey('a'); km2.addKey('b'); km2.addKey('c');
+            km2.current(); // useCount 0→1, a
+            km2.current(); // useCount 1→2, a
+            km2.current(); // useCount 2→3, a
+            const fourth = km2.current(); // useCount=3, 3%3==0 → rotate → b
+            eq(fourth, 'b', 'Proactive rotation at useCount=3 → b');
+
+            // Single key no rotation
+            const km3 = new KeyManager({ rotateEveryN: 2 });
+            km3.addKey('only');
+            km3.current(); km3.current(); km3.current();
+            eq(km3.keys[km3.index], 'only', 'Single key never rotates');
+
+            // Empty throws
+            const km4 = new KeyManager();
+            assertThrows(() => km4.current(), 'Empty KeyManager.current() throws');
+
+            // onRotate callback
+            let rotated = false;
+            const km5 = new KeyManager();
+            km5.addKey('x'); km5.addKey('y');
+            km5.onRotate(() => { rotated = true; });
+            km5.rotate();
+            assert(rotated, 'onRotate callback fires');
+        }
+
+        // =============================================
+        // GROUP 3: sleep
+        // =============================================
+
+        function testSleep() {
+            log('\n--- 3. sleep ---');
+            assert(sleep(0) instanceof Promise, 'sleep() returns a Promise');
+        }
+
+        // =============================================
+        // GROUP 4: GemmaAPI
+        // =============================================
+
+        function testGemmaAPI() {
+            log('\n--- 4. GemmaAPI ---');
+
+            const api = new GemmaAPI();
+            eq(api.model, 'gemma-3-27b-it', 'Default model');
+            eq(api.generationConfig.temperature, 1, 'Default temperature = 1');
+            eq(api.generationConfig.maxOutputTokens, 8192, 'Default maxOutputTokens = 8192');
+
+            // Custom config
+            const api2 = new GemmaAPI({ model: 'gemma-3-4b-it', generationConfig: { temperature: 0.5 } });
+            eq(api2.model, 'gemma-3-4b-it', 'Custom model');
+            eq(api2.generationConfig.temperature, 0.5, 'Custom temperature');
+        }
+
+        // =============================================
+        // GROUP 5: parseToolCalls
+        // =============================================
+
+        function testParseToolCalls() {
+            log('\n--- 5. parseToolCalls ---');
+
+            // Single well-formed
+            const r1 = parseToolCalls('Some text\n<tool_call>\n{"name": "calc", "arguments": {"x": 1}}\n</tool_call>\nMore text');
+            eq(r1.length, 1, 'Single tool call parsed');
+            eq(r1[0].name, 'calc', 'Tool name = calc');
+            eq(r1[0].arguments.x, 1, 'Argument x = 1');
+
+            // Multiple tool calls
+            const r2 = parseToolCalls('<tool_call>{"name":"a","arguments":{}}</tool_call> text <tool_call>{"name":"b","arguments":{"y":2}}</tool_call>');
+            eq(r2.length, 2, 'Two tool calls parsed');
+            eq(r2[0].name, 'a', 'First tool = a');
+            eq(r2[1].name, 'b', 'Second tool = b');
+
+            // No tool calls
+            eq(parseToolCalls('Just normal text').length, 0, 'No tool calls → empty array');
+
+            // Malformed JSON with trailing comma
+            const r3 = parseToolCalls('<tool_call>{"name":"test","arguments":{"a":1,}}</tool_call>');
+            eq(r3.length, 1, 'Trailing comma recovered');
+            eq(r3[0].name, 'test', 'Name parsed from recovered JSON');
+
+            // JSON with code fences inside tags
+            const r4 = parseToolCalls('<tool_call>\n```json\n{"name":"fenced","arguments":{}}\n```\n</tool_call>');
+            eq(r4.length, 1, 'Code-fenced JSON recovered');
+            eq(r4[0].name, 'fenced', 'Name from fenced JSON');
+
+            // "args" alias for "arguments"
+            const r5 = parseToolCalls('<tool_call>{"name":"alias","args":{"k":"v"}}</tool_call>');
+            eq(r5.length, 1, 'args alias accepted');
+            eq(r5[0].arguments.k, 'v', 'args alias maps to arguments');
+
+            // "parameters" alias
+            const r6 = parseToolCalls('<tool_call>{"name":"alias2","parameters":{"p":true}}</tool_call>');
+            eq(r6[0].arguments.p, true, 'parameters alias maps to arguments');
+
+            // Missing arguments defaults to {}
+            const r7 = parseToolCalls('<tool_call>{"name":"bare"}</tool_call>');
+            eq(r7.length, 1, 'Missing arguments → parsed');
+            eq(Object.keys(r7[0].arguments).length, 0, 'Missing arguments → empty object');
+
+            // Invalid JSON inside tags → skipped
+            const r8 = parseToolCalls('<tool_call>not json at all</tool_call>');
+            eq(r8.length, 0, 'Invalid JSON → skipped');
+
+            // hasToolCalls
+            assert(hasToolCalls('text <tool_call>x</tool_call>'), 'hasToolCalls returns true');
+            assert(!hasToolCalls('no tools here'), 'hasToolCalls returns false');
+
+            // stripToolCalls
+            eq(stripToolCalls('before <tool_call>{"name":"x"}</tool_call> after'), 'before  after', 'stripToolCalls removes blocks');
+        }
+
+        // =============================================
+        // GROUP 6: ToolRegistry
+        // =============================================
+
+        function testToolRegistry() {
+            log('\n--- 6. ToolRegistry ---');
+
+            const reg = new ToolRegistry();
+            eq(reg.size, 0, 'Empty registry size = 0');
+
+            // Add tool
+            reg.add({
+                name: 'test_tool',
+                description: 'A test',
+                parameters: { x: { type: 'number', required: true } },
+                handler: async (args) => args.x * 2
+            });
+            eq(reg.size, 1, 'After add: size = 1');
+            assert(reg.has('test_tool'), 'has() returns true');
+            assert(!reg.has('nope'), 'has() returns false for unknown');
+
+            // list()
+            const list = reg.list();
+            eq(list.length, 1, 'list() length = 1');
+            eq(list[0].name, 'test_tool', 'list() contains tool name');
+            assert(!list[0].handler, 'list() does not expose handler');
+
+            // remove
+            reg.remove('test_tool');
+            eq(reg.size, 0, 'After remove: size = 0');
+
+            // clear
+            reg.add({ name: 'a', handler: async () => {} });
+            reg.add({ name: 'b', handler: async () => {} });
+            reg.clear();
+            eq(reg.size, 0, 'After clear: size = 0');
+
+            // Validation: no name
+            assertThrows(() => reg.add({ handler: async () => {} }), 'add() without name throws');
+
+            // Validation: no handler
+            assertThrows(() => reg.add({ name: 'x' }), 'add() without handler throws');
+        }
+
+        // =============================================
+        // GROUP 7: ToolRegistry.execute
+        // =============================================
+
+        async function testToolExecution() {
+            log('\n--- 7. Tool Execution ---');
+
+            const reg = new ToolRegistry();
+            reg.add({
+                name: 'double',
+                parameters: { n: { type: 'number', required: true } },
+                handler: async (args) => args.n * 2
+            });
+
+            // Successful execution
+            const r1 = await reg.execute('double', { n: 5 });
+            eq(r1.result, 10, 'double(5) = 10');
+
+            // Unknown tool
+            const r2 = await reg.execute('unknown', {});
+            assert(!!r2.error, 'Unknown tool returns error');
+            assert(r2.error.includes('Unknown tool'), 'Error mentions unknown tool');
+
+            // Missing required param
+            const r3 = await reg.execute('double', {});
+            assert(!!r3.error, 'Missing required param returns error');
+
+            // Handler that throws
+            reg.add({
+                name: 'throws',
+                parameters: {},
+                handler: async () => { throw new Error('boom'); }
+            });
+            const r4 = await reg.execute('throws', {});
+            assert(!!r4.error, 'Throwing handler returns error');
+            assert(r4.error.includes('boom'), 'Error contains handler message');
+
+            // Default values
+            reg.add({
+                name: 'defaults',
+                parameters: { x: { type: 'number', required: false, default: 42 } },
+                handler: async (args) => args.x
+            });
+            const r5 = await reg.execute('defaults', {});
+            eq(r5.result, 42, 'Default value applied');
+        }
+
+        // =============================================
+        // GROUP 8: Module exports
+        // =============================================
+
+        function testExports() {
+            log('\n--- 8. Module Exports ---');
+            assert(typeof GemmaClient.encryptKey === 'function', 'encryptKey exported');
+            assert(typeof GemmaClient.decryptKey === 'function', 'decryptKey exported');
+            assert(typeof GemmaClient.KeyManager === 'function', 'KeyManager exported');
+            assert(typeof GemmaClient.sleep === 'function', 'sleep exported');
+            assert(typeof GemmaClient.fetchWithRetry === 'function', 'fetchWithRetry exported');
+            assert(typeof GemmaClient.GemmaAPI === 'function', 'GemmaAPI exported');
+            assert(typeof GemmaClient.ToolRegistry === 'function', 'ToolRegistry exported');
+            assert(typeof GemmaClient.ToolRunner === 'function', 'ToolRunner exported');
+            assert(typeof GemmaClient.parseToolCalls === 'function', 'parseToolCalls exported');
+            assert(typeof GemmaClient.hasToolCalls === 'function', 'hasToolCalls exported');
+            assert(typeof GemmaClient.stripToolCalls === 'function', 'stripToolCalls exported');
+        }
+
+        // =============================================
+        // Render
+        // =============================================
+
+        function renderGroup(title, names) {
+            const container = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = 'test-group';
+            let html = '<div class="test-group-title">' + title + '</div>';
+            for (const r of allResults.filter(r => names.includes(r.name))) {
+                html += '<div class="test-item">' +
+                    '<span class="badge ' + r.status + '">' + (r.status === 'pass' ? 'PASS' : 'FAIL') + '</span>' +
+                    '<span class="test-name">' + r.name + '</span>' +
+                    '<span class="test-detail">' + r.detail + '</span></div>';
+            }
+            div.innerHTML = html;
+            container.appendChild(div);
+        }
+
+        // =============================================
+        // Run all
+        // =============================================
+
+        async function runAll() {
+            log('===== gemma_client Test Suite =====\n');
+
+            testEncryption();
+            testKeyManager();
+            testSleep();
+            testGemmaAPI();
+            testParseToolCalls();
+            testToolRegistry();
+            await testToolExecution();
+            testExports();
+
+            log('\n===== Done: ' + passed + '/' + total + ' passed =====');
+
+            document.getElementById('totalNum').textContent = total;
+            document.getElementById('passNum').textContent = passed;
+            document.getElementById('failNum').textContent = failed;
+
+            // Render by groups
+            const groups = [
+                ['1. Encryption / Decryption', allResults.slice(0, 9).map(r => r.name)],
+                ['2. KeyManager', allResults.filter(r => r.name.match(/rotate|key|KeyManager|callback|Single|Proactive|Empty|After|Default|Custom|First|Wrap/i)).map(r => r.name)],
+                ['3. sleep', ['sleep() returns a Promise']],
+                ['4. GemmaAPI', allResults.filter(r => r.name.match(/model|temperature|maxOutput/i)).map(r => r.name)],
+                ['5. parseToolCalls', allResults.filter(r => r.name.match(/tool call|fenced|alias|arguments|Invalid|hasToolCalls|stripToolCalls|Trailing/i)).map(r => r.name)],
+                ['6. ToolRegistry', allResults.filter(r => r.name.match(/registry|has\(\)|list\(\)|remove|clear|add\(\)/i)).map(r => r.name)],
+                ['7. Tool Execution', allResults.filter(r => r.name.match(/double|Unknown|Missing required|Throwing|Default value/i)).map(r => r.name)],
+                ['8. Module Exports', allResults.filter(r => r.name.match(/exported/i)).map(r => r.name)],
+            ];
+            for (const [title, names] of groups) {
+                renderGroup(title, names);
+            }
+        }
+
+        runAll();
+    })();
+    </script>
+</body>
+</html>
