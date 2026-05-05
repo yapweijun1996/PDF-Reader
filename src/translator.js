@@ -1,6 +1,6 @@
 // Thin wrapper around legacy gemma.js (sample/gemma.js, copied unmodified).
-// gemma.js attaches loadApiKeys / callGeminiAPI / rotateKey / etc. to the global scope.
-import './gemma.js';
+// gemma.js is loaded as a classic <script> in index.html so its `var` declarations
+// (loadApiKeys, callGeminiAPI, rotateKey, ...) become true window globals.
 
 const cache = new Map();
 let initialized = false;
@@ -10,8 +10,7 @@ export function ensureKeysLoaded() {
   if (initialized) return Promise.resolve();
   if (initPromise) return initPromise;
   initPromise = (async () => {
-    // loadApiKeys is global from gemma.js
-    await loadApiKeys();
+    await window.loadApiKeys();
     initialized = true;
   })();
   return initPromise;
@@ -35,7 +34,7 @@ export async function translate(text, targetLang) {
     }]
   };
 
-  const result = await callGeminiAPI(
+  const result = await window.callGeminiAPI(
     'gemma-3-27b-it',
     userMessage,
     [],
