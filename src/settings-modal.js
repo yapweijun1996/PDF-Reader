@@ -8,6 +8,7 @@
 
 import { getUserConfig, setUserConfig, clearUserConfig } from './db.js';
 import { toast } from './toast.js';
+import { getAppTheme, setAppTheme, THEMES } from './theme.js';
 
 const MODEL_OPTIONS = {
   gemini: [
@@ -60,7 +61,24 @@ async function renderForm() {
   const apiKey = cfg.apiKey || '';
   const customModel = cfg.customModel || '';
 
+  const currentTheme = getAppTheme();
+
   body.innerHTML = `
+    <div class="settings-section">
+      <div class="settings-section-title">Appearance</div>
+      <div class="theme-segmented" role="radiogroup" aria-label="Theme">
+        ${THEMES.map(t => `
+          <button class="theme-segmented-btn ${t === currentTheme ? 'is-active' : ''}" data-theme="${t}" type="button" role="radio" aria-checked="${t === currentTheme}">
+            ${themeIcon(t)} <span>${t.charAt(0).toUpperCase() + t.slice(1)}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">AI Provider</div>
+    </div>
+
     <p class="settings-intro">
       Use your own API key to bypass the shared rotation. Stored locally
       in IndexedDB on your device — never uploaded.
@@ -107,6 +125,19 @@ async function renderForm() {
       modelSel.value === 'custom' ? 'flex' : 'none';
   });
 
+  // Theme segmented control
+  body.querySelectorAll('.theme-segmented-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.theme;
+      setAppTheme(t);
+      body.querySelectorAll('.theme-segmented-btn').forEach(b => {
+        const active = b === btn;
+        b.classList.toggle('is-active', active);
+        b.setAttribute('aria-checked', active ? 'true' : 'false');
+      });
+    });
+  });
+
   body.querySelector('.settings-save').addEventListener('click', async () => {
     const newCfg = {
       provider: body.querySelector('.settings-provider').value,
@@ -148,6 +179,12 @@ export async function getActiveModelConfig() {
     ? (cfg.customModel || 'gemma-3-27b-it')
     : (cfg.model || 'gemma-3-27b-it');
   return { model, apiKey: cfg.apiKey };
+}
+
+function themeIcon(t) {
+  if (t === 'light') return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>`;
+  if (t === 'dark')  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`;
 }
 
 function escapeAttr(s) {

@@ -1,4 +1,8 @@
 import 'pdfjs-dist/web/pdf_viewer.css';
+import { initTheme } from './theme.js';
+
+// Apply theme as the very first thing so first paint already has correct colors
+initTheme();
 import { renderPdf, onSelection } from './pdf-viewer.js';
 import { translate, ensureKeysLoaded } from './translator.js';
 import { explain } from './explain.js';
