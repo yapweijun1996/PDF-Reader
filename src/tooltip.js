@@ -4,6 +4,7 @@ const targetEl = () => document.getElementById('tooltipTarget');
 const closeBtn = () => document.getElementById('tooltipClose');
 const explainBtn = () => document.getElementById('tooltipExplain');
 const explainBody = () => document.getElementById('tooltipExplainBody');
+const handleEl = () => document.getElementById('tooltipHandle');
 
 let initialized = false;
 let onExplainClick = null;
@@ -13,7 +14,9 @@ export function initTooltip(onExplain) {
   if (initialized) return;
   initialized = true;
   onExplainClick = onExplain;
+
   closeBtn().addEventListener('click', hide);
+
   explainBtn().addEventListener('click', async () => {
     if (!currentSource || !onExplainClick) return;
     explainBtn().disabled = true;
@@ -28,10 +31,57 @@ export function initTooltip(onExplain) {
       explainBtn().disabled = false;
     }
   });
+
   document.addEventListener('mousedown', (e) => {
     const t = el();
     if (!t.hidden && !t.contains(e.target)) hide();
   });
+
+  wireDragToDismiss();
+}
+
+function wireDragToDismiss() {
+  const handle = handleEl();
+  const tip = el();
+  if (!handle || !tip) return;
+  let startY = 0;
+  let dy = 0;
+  let dragging = false;
+
+  const onStart = (e) => {
+    if (!isMobile()) return;
+    dragging = true;
+    startY = (e.touches?.[0]?.clientY) ?? e.clientY;
+    dy = 0;
+    tip.style.transition = 'none';
+  };
+  const onMove = (e) => {
+    if (!dragging) return;
+    const y = (e.touches?.[0]?.clientY) ?? e.clientY;
+    dy = Math.max(0, y - startY);
+    tip.style.transform = `translateY(${dy}px)`;
+  };
+  const onEnd = () => {
+    if (!dragging) return;
+    dragging = false;
+    tip.style.transition = '';
+    if (dy > 80) {
+      hide();
+    } else {
+      tip.style.transform = '';
+    }
+  };
+
+  handle.addEventListener('touchstart', onStart, { passive: true });
+  handle.addEventListener('touchmove', onMove, { passive: true });
+  handle.addEventListener('touchend', onEnd);
+  handle.addEventListener('mousedown', onStart);
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onEnd);
+}
+
+function isMobile() {
+  return window.innerWidth < 640;
 }
 
 export function showLoading(sourceText, rect) {
@@ -41,11 +91,12 @@ export function showLoading(sourceText, rect) {
   targetEl().innerHTML = '<span class="spinner"></span> Translating…';
   explainBtn().hidden = false;
   explainBtn().disabled = false;
-  explainBtn().textContent = '📖 Explain';
   explainBody().hidden = true;
   explainBody().innerHTML = '';
+  t.style.transform = '';
   t.hidden = false;
   position(t, rect);
+  requestAnimationFrame(() => t.classList.add('tooltip-in'));
 }
 
 export function showResult(translated) {
@@ -57,7 +108,12 @@ export function showError(msg) {
 }
 
 export function hide() {
-  el().hidden = true;
+  const t = el();
+  t.classList.remove('tooltip-in');
+  setTimeout(() => {
+    t.hidden = true;
+    t.style.transform = '';
+  }, 180);
   currentSource = '';
 }
 
@@ -67,7 +123,7 @@ function renderExplain(p) {
     ? `<ul>${arr.map(x => `<li>${escapeHtml(safe(x))}</li>`).join('')}</ul>`
     : '';
   const block = (icon, label, body) => body
-    ? `<div class="explain-block"><div class="explain-label">${icon} ${label}</div><div class="explain-body">${body}</div></div>`
+    ? `<div class="explain-block"><div class="explain-label">${icon} ${label}</div><div class="explain-body-text">${body}</div></div>`
     : '';
 
   explainBody().innerHTML = [
@@ -89,16 +145,16 @@ function escapeHtml(s) {
 }
 
 function position(t, rect) {
-  if (!rect) return;
-  const isMobile = window.innerWidth < 640;
-  if (isMobile) {
-    t.style.left = '8px';
-    t.style.right = '8px';
+  if (isMobile()) {
+    // Bottom sheet — full width, anchored to bottom
+    t.style.left = '0';
+    t.style.right = '0';
     t.style.top = 'auto';
-    t.style.bottom = '12px';
+    t.style.bottom = '0';
     t.style.maxWidth = 'none';
     return;
   }
+  if (!rect) return;
   const margin = 12;
   const tw = 380;
   let left = rect.left + window.scrollX;

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <meta name="theme-color" content="#1f2937" />
     <title>PDF Reader — Highlight to Translate</title>
     <link rel="icon" type="image/png" href="icons/icon-192.png" />
@@ -56,15 +56,22 @@
     </aside>
 
     <div id="tooltip" class="tooltip" role="status" aria-live="polite" hidden>
-      <div class="tooltip-source" id="tooltipSource"></div>
-      <div class="tooltip-arrow">→</div>
-      <div class="tooltip-target" id="tooltipTarget"></div>
-      <button class="explain-btn" id="tooltipExplain" hidden>📖 Explain</button>
-      <div class="explain-body" id="tooltipExplainBody" hidden></div>
+      <div class="tooltip-handle" id="tooltipHandle" aria-hidden="true"><span></span></div>
       <button class="tooltip-close" id="tooltipClose" aria-label="Close">×</button>
+      <div class="tooltip-body">
+        <div class="tooltip-source" id="tooltipSource"></div>
+        <div class="tooltip-arrow">→</div>
+        <div class="tooltip-target" id="tooltipTarget"></div>
+        <button class="explain-btn" id="tooltipExplain" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 4h12a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z" />
+            <path d="M4 17a3 3 0 0 1 3-3h12" />
+          </svg>
+          Explain
+        </button>
+        <div class="explain-body" id="tooltipExplainBody" hidden></div>
+      </div>
     </div>
-
-    <div id="status" class="status" aria-live="polite"></div>
 
     <script type="module" src="/src/main.js"></script>
   </body>

@@ -7,64 +7,77 @@ import { initTooltip, showLoading, showResult, showError } from './tooltip.js';
 import { wireUploadUI, openPdfFile, openPdfFromRecord } from './upload.js';
 import { initHistoryDrawer } from './history.js';
 import { getDocHash } from './db.js';
+import { toast } from './toast.js';
 import { registerSW } from 'virtual:pwa-register';
 
 const viewer = () => document.getElementById('viewer');
-const statusEl = () => document.getElementById('status');
 
 let currentDocHash = null;
 let currentHasTextLayer = true;
 let lastSelectionContext = '';
+let loadingToastId = null;
 
-function status(msg) {
-  const el = statusEl();
-  el.textContent = msg || '';
-  el.style.display = msg ? 'block' : 'none';
+function setLoading(msg) {
+  if (msg) {
+    loadingToastId = toast(msg, { sticky: true, id: 'loading' });
+  } else if (loadingToastId) {
+    toast.dismiss(loadingToastId);
+    loadingToastId = null;
+  }
+}
+
+function notify(msg, opts) {
+  return toast(msg, opts);
 }
 
 async function loadDemoPdf() {
-  status('Loading demo PDF…');
-  const url = `${import.meta.env.BASE_URL}attention.pdf`;
-  const res = await fetch(url);
-  const buf = await res.arrayBuffer();
-  currentDocHash = await getDocHash(buf);
-  const { hasTextLayer } = await renderPdf(new Uint8Array(buf), viewer());
-  currentHasTextLayer = hasTextLayer;
-  if (!hasTextLayer) {
-    status('⚠️ Scanned PDF — translation unavailable.');
-  } else {
-    status('');
+  setLoading('Loading demo PDF…');
+  try {
+    const url = `${import.meta.env.BASE_URL}attention.pdf`;
+    const res = await fetch(url);
+    const buf = await res.arrayBuffer();
+    currentDocHash = await getDocHash(buf);
+    const { hasTextLayer } = await renderPdf(new Uint8Array(buf), viewer());
+    currentHasTextLayer = hasTextLayer;
+    if (!hasTextLayer) {
+      notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
+    }
+  } finally {
+    setLoading(null);
   }
 }
 
 async function handleFile(file) {
   try {
-    const { docHash, hasTextLayer } = await openPdfFile(file, viewer(), status);
+    const { docHash, hasTextLayer } = await openPdfFile(file, viewer(), setLoading);
     currentDocHash = docHash;
     currentHasTextLayer = hasTextLayer;
     if (!hasTextLayer) {
-      status('⚠️ Scanned PDF — translation unavailable.');
-      setTimeout(() => status(''), 4000);
+      notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
+    } else {
+      notify('Opened: ' + file.name, { duration: 2500 });
     }
   } catch (e) {
     console.error(e);
-    status(`⚠️ ${e.message}`);
-    setTimeout(() => status(''), 4000);
+    notify(`⚠️ ${e.message}`, { duration: 4000 });
+  } finally {
+    setLoading(null);
   }
 }
 
 async function handleHistoryOpen(record) {
   try {
-    const { docHash, hasTextLayer } = await openPdfFromRecord(record, viewer(), status);
+    const { docHash, hasTextLayer } = await openPdfFromRecord(record, viewer(), setLoading);
     currentDocHash = docHash;
     currentHasTextLayer = hasTextLayer;
     if (!hasTextLayer) {
-      status('⚠️ Scanned PDF — translation unavailable.');
-      setTimeout(() => status(''), 4000);
+      notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
     }
   } catch (e) {
     console.error(e);
-    status(`⚠️ ${e.message}`);
+    notify(`⚠️ ${e.message}`, { duration: 4000 });
+  } finally {
+    setLoading(null);
   }
 }
 
@@ -90,19 +103,21 @@ async function boot() {
     onOpen: handleHistoryOpen
   });
 
-  status('Loading API keys…');
+  setLoading('Loading API keys…');
   try {
     await ensureKeysLoaded();
   } catch (e) {
     console.error(e);
-    status('⚠️ Failed to load API keys — translation disabled.');
+    notify('⚠️ Failed to load API keys — translation disabled', { duration: 6000 });
   }
 
   try {
     await loadDemoPdf();
   } catch (e) {
     console.error(e);
-    status('⚠️ Failed to load demo PDF: ' + e.message);
+    notify('⚠️ Failed to load demo PDF: ' + e.message, { duration: 6000 });
+  } finally {
+    setLoading(null);
   }
 
   onSelection(async (text, rect) => {
