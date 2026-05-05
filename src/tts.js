@@ -6,7 +6,7 @@
 // and don't need to know which provider runs underneath.
 
 import { synthesizeGemini, GEMINI_VOICES } from './tts-gemini.js';
-import { getUserConfig } from './db.js';
+import { getUserConfig, getAudioBlob, putAudioBlob, audioCacheKey } from './db.js';
 import { getActiveModelConfig } from './settings-modal.js';
 import { toast } from './toast.js';
 
@@ -33,7 +33,10 @@ let currentUtter = null;
 let currentAudio = null;
 let currentBlobUrl = null;
 
-const audioCache = new Map(); // key: provider::voice::text -> Blob URL
+// Short-lived in-memory map of Blob URLs (so the same audio can be replayed
+// without revoking the URL). Persistent storage of the actual audio bytes
+// lives in IndexedDB via db.js getAudioBlob/putAudioBlob.
+const blobUrlCache = new Map();
 
 export function isSupported() {
   return typeof window !== 'undefined' && 'speechSynthesis' in window;
@@ -80,7 +83,7 @@ export async function speak(text, targetLang, opts = {}) {
 
   if (provider === 'gemini') {
     try {
-      return await speakGemini(text, opts);
+      return await speakGemini(text, opts, targetLang);
     } catch (e) {
       console.warn('[tts] Gemini failed, falling back to browser:', e);
       toast(`⚠️ Gemini TTS: ${e.message || e}`, { duration: 5000 });
@@ -112,31 +115,45 @@ function speakBrowser(text, targetLang, opts) {
   return utter;
 }
 
-async function speakGemini(text, opts) {
+async function speakGemini(text, opts, targetLang) {
   const userCfg = await getActiveModelConfig();
   const apiKey = userCfg.apiKey;
   if (!apiKey) throw new Error('Gemini TTS requires an API key — open Settings ⚙ and paste your Google AI Studio key.');
   const cfg = await getUserConfig();
   const voice = opts.voice || cfg.ttsVoice || 'Zephyr';
-  const cacheKey = `gemini::${voice}::${text}`;
+  const langTag = langTagFor(targetLang);
+  const idbKey = await audioCacheKey('gemini', voice, langTag, text);
 
-  let blobUrl = audioCache.get(cacheKey);
-  if (!blobUrl) {
+  // Tier 1: in-memory blob URL (instant)
+  let blobUrl = blobUrlCache.get(idbKey);
+  if (blobUrl) {
     opts.onstart?.();
-    console.log('[tts] Gemini synthesizing…', { voice, len: text.length });
-    const blob = await synthesizeGemini({ text, voice, apiKey });
-    blobUrl = URL.createObjectURL(blob);
-    audioCache.set(cacheKey, blobUrl);
-    if (audioCache.size > 50) {
-      const firstKey = audioCache.keys().next().value;
-      const oldUrl = audioCache.get(firstKey);
-      URL.revokeObjectURL(oldUrl);
-      audioCache.delete(firstKey);
-    }
-    console.log('[tts] Gemini synth ok, ' + blob.size + ' bytes');
+    console.log('[tts] memory hit');
   } else {
-    opts.onstart?.();
-    console.log('[tts] Gemini cache hit');
+    // Tier 2: IndexedDB (persisted across reloads)
+    let blob = await getAudioBlob(idbKey);
+    if (blob) {
+      opts.onstart?.();
+      console.log('[tts] IDB hit, ' + blob.size + ' bytes');
+    } else {
+      // Tier 3: synthesize via Gemini
+      opts.onstart?.();
+      console.log('[tts] Gemini synthesizing…', { voice, len: text.length });
+      blob = await synthesizeGemini({ text, voice, apiKey });
+      try { await putAudioBlob(idbKey, blob); } catch (e) {
+        console.warn('[tts] IDB save failed (continuing):', e);
+      }
+      console.log('[tts] Gemini synth ok, ' + blob.size + ' bytes');
+    }
+    blobUrl = URL.createObjectURL(blob);
+    blobUrlCache.set(idbKey, blobUrl);
+    // Cap in-memory URL cache; revoke oldest
+    if (blobUrlCache.size > 100) {
+      const firstKey = blobUrlCache.keys().next().value;
+      const oldUrl = blobUrlCache.get(firstKey);
+      URL.revokeObjectURL(oldUrl);
+      blobUrlCache.delete(firstKey);
+    }
   }
 
   const audio = new Audio(blobUrl);

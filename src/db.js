@@ -90,6 +90,52 @@ export async function clearUserConfig() {
   await del(USER_CONFIG_KEY);
 }
 
+const AUDIO_PREFIX = 'audio::';
+const AUDIO_INDEX_KEY = 'audio::__index__';
+const AUDIO_LIMIT = 200; // cap LRU at 200 audio blobs
+
+export async function getAudioBlob(key) {
+  const blob = await get(AUDIO_PREFIX + key);
+  if (!(blob instanceof Blob)) return null;
+  // Touch index for LRU on read
+  await touchAudioIndex(key);
+  return blob;
+}
+
+export async function putAudioBlob(key, blob) {
+  await set(AUDIO_PREFIX + key, blob);
+  await touchAudioIndex(key);
+  await evictAudioIfOverLimit();
+}
+
+async function touchAudioIndex(key) {
+  const idx = (await get(AUDIO_INDEX_KEY)) || [];
+  const existing = idx.findIndex(e => e.key === key);
+  const now = Date.now();
+  if (existing >= 0) idx.splice(existing, 1);
+  idx.push({ key, ts: now });
+  await set(AUDIO_INDEX_KEY, idx);
+}
+
+async function evictAudioIfOverLimit() {
+  const idx = (await get(AUDIO_INDEX_KEY)) || [];
+  if (idx.length <= AUDIO_LIMIT) return;
+  const toEvict = idx.slice(0, idx.length - AUDIO_LIMIT);
+  for (const e of toEvict) {
+    try { await del(AUDIO_PREFIX + e.key); } catch {}
+  }
+  await set(AUDIO_INDEX_KEY, idx.slice(idx.length - AUDIO_LIMIT));
+}
+
+export async function audioCacheKey(provider, voice, lang, text) {
+  // SHA-256 hex of (provider/voice/lang/text), first 16 hex = 64 bit; collision
+  // probability for a few hundred entries is negligible.
+  const enc = new TextEncoder().encode(`${provider}::${voice}::${lang}::${text}`);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf).slice(0, 16))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 function normalize(s) {
   return s.trim().toLowerCase().slice(0, 200);
 }

@@ -8,7 +8,6 @@ const closeBtn = () => document.getElementById('tooltipClose');
 const explainBtn = () => document.getElementById('tooltipExplain');
 const explainBody = () => document.getElementById('tooltipExplainBody');
 const handleEl = () => document.getElementById('tooltipHandle');
-const speakSrcBtn = () => document.getElementById('tooltipSpeakSrc');
 const speakTgtBtn = () => document.getElementById('tooltipSpeakTgt');
 
 let initialized = false;
@@ -22,12 +21,6 @@ export function initTooltip(onExplain, getTargetLang) {
   onExplainClick = onExplain;
   getTargetLangCb = getTargetLang;
 
-  speakSrcBtn().addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (!currentSource) return;
-    const lang = detectLang(currentSource).bcp47;
-    speakWith(speakSrcBtn(), currentSource, lang);
-  });
   speakTgtBtn().addEventListener('click', (e) => {
     e.stopPropagation();
     const text = targetEl().textContent || '';
@@ -157,12 +150,11 @@ function renderExplain(p) {
        </div>`
     : '';
 
-  // Headword section: phrase + phonetic + 🔊 + partOfSpeech + CEFR badge
+  // Headword section: phrase + phonetic + partOfSpeech + CEFR badge
+  // (No TTS button here — source language audio is intentionally omitted;
+  // speak the *translation* via the main tooltip-target TTS button.)
   const head = `
     <div class="explain-head">
-      <button class="tts-btn" data-tts="${escapeAttr(currentSource)}" data-lang="${sourceTag}" title="Read aloud">
-        ${ttsSvg()}
-      </button>
       <div class="explain-head-text">
         <span class="explain-headword">${escapeHtml(currentSource)}</span>
         ${p.phonetic ? `<span class="explain-phonetic">${escapeHtml(p.phonetic)}</span>` : ''}
@@ -186,12 +178,7 @@ function renderExplain(p) {
       <div class="explain-examples">
         ${p.examples.map(e => `
           <div class="explain-example">
-            <div class="explain-example-head">
-              <button class="tts-btn tts-btn-sm" data-tts="${escapeAttr(e.src)}" data-lang="${sourceTag}" title="Read aloud">
-                ${ttsSvg()}
-              </button>
-              ${e.level ? `<span class="badge badge-cefr badge-sm">${escapeHtml(e.level)}</span>` : ''}
-            </div>
+            ${e.level ? `<div class="explain-example-head"><span class="badge badge-cefr badge-sm">${escapeHtml(e.level)}</span></div>` : ''}
             <div class="explain-example-src">${escapeHtml(e.src)}</div>
             <div class="explain-example-tgt">${escapeHtml(e.tgt)}</div>
           </div>`).join('')}
@@ -206,7 +193,6 @@ function renderExplain(p) {
     <ul class="explain-list">
       ${p.wordFamily.map(w => `
         <li>
-          <button class="tts-btn tts-btn-xs" data-tts="${escapeAttr(w.word)}" data-lang="${sourceTag}" title="Read aloud">${ttsSvg()}</button>
           <strong>${escapeHtml(w.word)}</strong>
           ${w.pos ? `<span class="muted"> (${escapeHtml(w.pos)})</span>` : ''}
           ${w.meaning ? ` — ${escapeHtml(w.meaning)}` : ''}
@@ -217,7 +203,6 @@ function renderExplain(p) {
     <ul class="explain-list">
       ${p.synonyms.map(s => `
         <li>
-          <button class="tts-btn tts-btn-xs" data-tts="${escapeAttr(s.word)}" data-lang="${sourceTag}" title="Read aloud">${ttsSvg()}</button>
           <strong>${escapeHtml(s.word)}</strong>
           ${s.note ? ` — <span class="muted">${escapeHtml(s.note)}</span>` : ''}
         </li>`).join('')}
