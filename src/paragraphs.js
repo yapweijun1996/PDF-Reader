@@ -45,13 +45,44 @@ export function extractParagraphs(textLayer) {
 
   return groups
     .map(g => ({
-      text: g.items.map(i => i.text).join(' ').replace(/\s+/g, ' ').trim(),
+      text: cleanText(g.items.map(i => i.text).join(' ')),
       top: g.top,
       bottom: g.bottom,
       left: g.left,
       right: g.right
     }))
     .filter(p => shouldTranslate(p.text));
+}
+
+/**
+ * Mechanical (regex-level) cleaning of raw extracted text. Cheap,
+ * deterministic, runs before LLM. The LLM still does smarter cleaning
+ * during translation, but this layer handles the obvious noise so we
+ * don't waste tokens on it.
+ */
+export function cleanText(raw) {
+  let t = String(raw || '');
+
+  // Reconnect hyphenated line breaks like "se- quence" → "sequence"
+  // Only fold if hyphen is between two lowercase letters (real word break)
+  t = t.replace(/([a-z])-\s+([a-z])/g, '$1$2');
+
+  // Strip citation markers: [1], [1, 2], [1-3], [1, 2, 5], [12]
+  t = t.replace(/\s*\[\s*\d+(?:\s*[-,]\s*\d+)*\s*\]/g, '');
+
+  // Strip standalone footnote markers when followed by space (mid-paragraph)
+  t = t.replace(/\s[*†‡§¶★]+(?=\s)/g, ' ');
+
+  // Strip footnote markers at start of paragraph
+  t = t.replace(/^[\s*†‡§¶★]+/, '');
+
+  // Collapse runs of whitespace (including non-breaking + line/paragraph seps)
+  t = t.replace(/[\s   ]+/g, ' ');
+
+  // Smarten quotes like "He said , 'go'" → "He said, 'go'"
+  t = t.replace(/\s+([,;.!?:])/g, '$1');
+
+  return t.trim();
 }
 
 function newGroup(it) {

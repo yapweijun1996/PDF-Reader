@@ -140,10 +140,14 @@ function normalize(s) {
   return s.trim().toLowerCase().slice(0, 200);
 }
 
+// Bump when the translation prompt changes — invalidates older cached
+// entries so users see the improved output without manually clearing IDB.
+const TRANS_VERSION = 2;
+
 export async function getTrans(docHash, segId, lang) {
-  return get(`${TRANS_PREFIX}${docHash}::${segId}::${lang}`);
+  return get(`${TRANS_PREFIX}v${TRANS_VERSION}::${docHash}::${segId}::${lang}`);
 }
 
 export async function putTrans(docHash, segId, lang, text) {
-  await set(`${TRANS_PREFIX}${docHash}::${segId}::${lang}`, text);
+  await set(`${TRANS_PREFIX}v${TRANS_VERSION}::${docHash}::${segId}::${lang}`, text);
 }
