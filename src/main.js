@@ -2,7 +2,7 @@ import 'pdfjs-dist/web/pdf_viewer.css';
 import { renderPdf, onSelection } from './pdf-viewer.js';
 import { translate, ensureKeysLoaded } from './translator.js';
 import { explain } from './explain.js';
-import { mountLangSelector, getTargetLang, getTranslateMode, setTranslateMode, MODES } from './settings.js';
+import { mountLangSelector, getTargetLang, getTranslateMode, setTranslateMode, MODES, MODE_LABELS, isAutoMode } from './settings.js';
 import { startAutoTranslate, stopAutoTranslate, rescanPages } from './auto-translator.js';
 import { initTooltip, showLoading, showResult, showError } from './tooltip.js';
 import { wireUploadUI, openPdfFile, openPdfFromRecord } from './upload.js';
@@ -33,18 +33,51 @@ function notify(msg, opts) {
   return toast(msg, opts);
 }
 
+function initScrollAwareTopbar() {
+  const topbar = document.querySelector('.topbar');
+  if (!topbar) return;
+  let lastY = window.scrollY;
+  let ticking = false;
+  const threshold = 8;
+  const bypassZone = 80; // always show within 80px of top
+
+  const update = () => {
+    const y = window.scrollY;
+    const delta = y - lastY;
+    if (y < bypassZone) {
+      topbar.classList.remove('topbar-hidden');
+    } else if (delta > threshold) {
+      topbar.classList.add('topbar-hidden');
+    } else if (delta < -threshold) {
+      topbar.classList.remove('topbar-hidden');
+    }
+    lastY = y;
+    ticking = false;
+  };
+
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(update);
+      ticking = true;
+    }
+  }, { passive: true });
+}
+
 function autoCtx() {
-  return { docHash: currentDocHash, lang: getTargetLang() };
+  return {
+    docHash: currentDocHash,
+    lang: getTargetLang(),
+    mode: getTranslateMode()
+  };
 }
 
 function applyMode(mode) {
-  document.body.classList.toggle('auto-mode', mode === MODES.AUTO);
-  const btn = document.getElementById('autoModeBtn');
-  if (btn) {
-    btn.classList.toggle('mode-btn-active', mode === MODES.AUTO);
-    btn.setAttribute('aria-pressed', mode === MODES.AUTO ? 'true' : 'false');
-  }
-  if (mode === MODES.AUTO) {
+  // Body class drives CSS (mode-selection / mode-side / mode-bilingual)
+  document.body.classList.remove('mode-selection', 'mode-side', 'mode-bilingual', 'auto-mode');
+  document.body.classList.add(`mode-${mode}`);
+  if (isAutoMode(mode)) document.body.classList.add('auto-mode');
+
+  if (isAutoMode(mode)) {
     startAutoTranslate({
       panel: document.getElementById('translationPanel'),
       getContext: autoCtx
@@ -53,6 +86,25 @@ function applyMode(mode) {
   } else {
     stopAutoTranslate();
   }
+}
+
+function mountModeSelector() {
+  const sel = document.getElementById('modeSelect');
+  if (!sel) return;
+  sel.innerHTML = '';
+  for (const value of Object.values(MODES)) {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = MODE_LABELS[value];
+    sel.appendChild(opt);
+  }
+  sel.value = getTranslateMode();
+  sel.addEventListener('change', () => {
+    const next = sel.value;
+    setTranslateMode(next);
+    applyMode(next);
+    notify(`Mode: ${MODE_LABELS[next]}`, { duration: 1800 });
+  });
 }
 
 async function loadDemoPdf() {
@@ -67,7 +119,7 @@ async function loadDemoPdf() {
     if (!hasTextLayer) {
       notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
     }
-    if (getTranslateMode() === MODES.AUTO && hasTextLayer) rescanPages();
+    if (isAutoMode(getTranslateMode()) && hasTextLayer) rescanPages();
   } finally {
     setLoading(null);
   }
@@ -83,7 +135,7 @@ async function handleFile(file) {
     } else {
       notify('Opened: ' + file.name, { duration: 2500 });
     }
-    if (getTranslateMode() === MODES.AUTO && hasTextLayer) rescanPages();
+    if (isAutoMode(getTranslateMode()) && hasTextLayer) rescanPages();
   } catch (e) {
     console.error(e);
     notify(`⚠️ ${e.message}`, { duration: 4000 });
@@ -100,7 +152,7 @@ async function handleHistoryOpen(record) {
     if (!hasTextLayer) {
       notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
     }
-    if (getTranslateMode() === MODES.AUTO && hasTextLayer) rescanPages();
+    if (isAutoMode(getTranslateMode()) && hasTextLayer) rescanPages();
   } catch (e) {
     console.error(e);
     notify(`⚠️ ${e.message}`, { duration: 4000 });
@@ -116,15 +168,10 @@ async function boot() {
   });
 
   mountLangSelector(document.getElementById('targetLang'), () => {
-    if (getTranslateMode() === MODES.AUTO && currentHasTextLayer) rescanPages();
+    if (isAutoMode(getTranslateMode()) && currentHasTextLayer) rescanPages();
   });
 
-  document.getElementById('autoModeBtn').addEventListener('click', () => {
-    const next = getTranslateMode() === MODES.AUTO ? MODES.SELECTION : MODES.AUTO;
-    setTranslateMode(next);
-    applyMode(next);
-    notify(next === MODES.AUTO ? 'Auto-translate ON' : 'Auto-translate OFF', { duration: 1800 });
-  });
+  mountModeSelector();
 
   document.getElementById('panelClearBtn').addEventListener('click', () => {
     const list = document.querySelector('#translationPanel .panel-list');
@@ -140,6 +187,7 @@ async function boot() {
 
   initOfflineBanner();
   initInstallPrompt(document.getElementById('installBtn'));
+  initScrollAwareTopbar();
 
   initHistoryDrawer({
     drawerEl: document.getElementById('historyDrawer'),

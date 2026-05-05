@@ -1,7 +1,8 @@
 // Viewport auto-translate.
 // Walks the rendered textLayers, clusters spans into paragraphs, observes them
 // with IntersectionObserver, queues visible ones, throttles API calls, and
-// renders bilingual cards into the side translation panel.
+// renders bilingual cards either to the side panel or to per-page columns
+// depending on the current mode.
 
 import { translate } from './translator.js';
 import { getTrans, putTrans } from './db.js';
@@ -11,7 +12,7 @@ const PARAGRAPH_MIN_CHARS = 12;
 
 let active = false;
 let panelEl = null;
-let getCtx = null; // () => ({ docHash, lang })
+let getCtx = null; // () => ({ docHash, lang, mode })
 let observer = null;
 const seenSegs = new Set();
 const queue = [];
@@ -22,7 +23,7 @@ export function startAutoTranslate({ panel, getContext }) {
   getCtx = getContext;
   if (active) return;
   active = true;
-  panelEl.classList.add('panel-open');
+  if (panelEl) panelEl.classList.add('panel-open');
   scanAllPages();
 }
 
@@ -38,16 +39,22 @@ export function stopAutoTranslate() {
     if (list) list.innerHTML = '';
   }
   document.querySelectorAll('.paragraph-anchor').forEach(el => el.remove());
+  document.querySelectorAll('.translation-column').forEach(col => { col.innerHTML = ''; });
 }
 
 /**
- * Re-scan the current viewer DOM for paragraphs after a new PDF loads.
- * Safe to call multiple times.
+ * Re-scan the current viewer DOM for paragraphs after a new PDF loads or mode
+ * changes. Safe to call multiple times.
  */
 export function rescanPages() {
   if (!active) return;
   if (observer) observer.disconnect();
   document.querySelectorAll('.paragraph-anchor').forEach(el => el.remove());
+  document.querySelectorAll('.translation-column').forEach(col => { col.innerHTML = ''; });
+  if (panelEl) {
+    const list = panelEl.querySelector('.panel-list');
+    if (list) list.innerHTML = '';
+  }
   seenSegs.clear();
   scanAllPages();
 }
@@ -70,6 +77,9 @@ function scanAllPages() {
       anchor.className = 'paragraph-anchor';
       anchor.dataset.segId = segId;
       anchor.dataset.text = p.text;
+      anchor.dataset.pageIdx = String(pageIdx);
+      anchor.dataset.top = String(p.top);
+      anchor.dataset.height = String(Math.max(8, p.bottom - p.top));
       anchor.style.position = 'absolute';
       anchor.style.left = `${p.left}px`;
       anchor.style.top = `${p.top}px`;
@@ -145,7 +155,6 @@ function newGroup(it) {
 function shouldTranslate(text) {
   const t = text.trim();
   if (t.length < PARAGRAPH_MIN_CHARS) return false;
-  // Skip if mostly numbers/symbols (e.g. tables, formulas, references)
   const wordChars = (t.match(/[A-Za-z一-鿿぀-ヿ]/g) || []).length;
   if (wordChars / t.length < 0.5) return false;
   return true;
@@ -160,7 +169,10 @@ function onIntersect(entries) {
     seenSegs.add(segId);
     queue.push({
       segId,
-      text: anchor.dataset.text
+      text: anchor.dataset.text,
+      pageIdx: parseInt(anchor.dataset.pageIdx, 10),
+      top: parseFloat(anchor.dataset.top),
+      height: parseFloat(anchor.dataset.height)
     });
     pump();
   }
@@ -185,11 +197,11 @@ async function pump() {
 async function processJob(job) {
   const ctx = getCtx?.();
   if (!ctx) return;
-  const { docHash, lang } = ctx;
-  const cardEl = ensureCard(job.segId, job.text);
+  const { docHash, lang, mode } = ctx;
+  const cardEl = ensureCard(job, mode);
+  if (!cardEl) return;
   const transTarget = cardEl.querySelector('.card-target');
 
-  // Try cache first
   try {
     const cached = docHash ? await getTrans(docHash, job.segId, lang) : null;
     if (cached) {
@@ -213,22 +225,58 @@ async function processJob(job) {
   }
 }
 
-function ensureCard(segId, text) {
+function ensureCard(job, mode) {
+  if (mode === 'bilingual') return ensureBilingualCard(job);
+  return ensurePanelCard(job);
+}
+
+function ensurePanelCard(job) {
+  if (!panelEl) return null;
   const list = panelEl.querySelector('.panel-list');
-  let card = list.querySelector(`[data-seg-id="${segId}"]`);
+  let card = list.querySelector(`[data-seg-id="${job.segId}"]`);
   if (card) return card;
-  card = document.createElement('div');
+  card = makeCardElement(job);
+  list.appendChild(card);
+  list.scrollTop = list.scrollHeight;
+  return card;
+}
+
+function ensureBilingualCard(job) {
+  const rows = document.querySelectorAll('.bilingual-row');
+  const row = rows[job.pageIdx];
+  if (!row) return ensurePanelCard(job);
+  const column = row.querySelector('.translation-column');
+  if (!column) return ensurePanelCard(job);
+  let card = column.querySelector(`[data-seg-id="${job.segId}"]`);
+  if (card) return card;
+  card = makeCardElement(job);
+  card.classList.add('translation-card-bilingual');
+  // Insert in segId numeric order so cards roughly match reading order even
+  // when IO fires out-of-order during fast scroll.
+  const existing = Array.from(column.querySelectorAll('.translation-card'));
+  const newSeg = parseSegOrder(job.segId);
+  const before = existing.find(el => parseSegOrder(el.dataset.segId) > newSeg);
+  if (before) column.insertBefore(card, before); else column.appendChild(card);
+  return card;
+}
+
+function parseSegOrder(segId) {
+  // 'p3_5' -> 3.0005 (page-major)
+  const m = /^p(\d+)_(\d+)$/.exec(segId);
+  if (!m) return 0;
+  return parseInt(m[1], 10) * 10000 + parseInt(m[2], 10);
+}
+
+function makeCardElement(job) {
+  const card = document.createElement('div');
   card.className = 'translation-card';
-  card.dataset.segId = segId;
+  card.dataset.segId = job.segId;
   card.innerHTML = `
     <div class="card-source"></div>
     <div class="card-arrow">↓</div>
     <div class="card-target"></div>
   `;
-  card.querySelector('.card-source').textContent = truncate(text, 200);
-  list.appendChild(card);
-  // Auto-scroll to newest
-  list.scrollTop = list.scrollHeight;
+  card.querySelector('.card-source').textContent = truncate(job.text, 200);
   return card;
 }
 

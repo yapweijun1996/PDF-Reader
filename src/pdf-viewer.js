@@ -9,6 +9,25 @@ const RENDER_SCALE = (() => {
   return baseScale * Math.min(dpr, 2);
 })();
 
+const BILINGUAL_COLUMN_WIDTH = 320;
+const BILINGUAL_GUTTER = 24;
+const BILINGUAL_BREAKPOINT = 1024;
+
+function isBilingualLayoutEligible() {
+  return window.innerWidth >= BILINGUAL_BREAKPOINT && document.body.classList.contains('mode-bilingual');
+}
+
+function computeCssScale(viewport, container) {
+  if (window.innerWidth < 768) {
+    return (window.innerWidth - 16) / viewport.width;
+  }
+  let available = container.clientWidth - 32;
+  if (isBilingualLayoutEligible()) {
+    available = available - BILINGUAL_COLUMN_WIDTH - BILINGUAL_GUTTER;
+  }
+  return Math.min(1, Math.max(0.4, available / viewport.width));
+}
+
 let currentPdf = null;
 
 /**
@@ -36,14 +55,19 @@ export async function renderPdf(source, container) {
 
 async function renderPage(page, container) {
   const viewport = page.getViewport({ scale: RENDER_SCALE });
-  const cssScale = (window.innerWidth < 768)
-    ? (window.innerWidth - 16) / viewport.width
-    : Math.min(1, (container.clientWidth - 32) / viewport.width);
+  const cssScale = computeCssScale(viewport, container);
+
+  const row = document.createElement('div');
+  row.className = 'bilingual-row';
 
   const wrapper = document.createElement('div');
   wrapper.className = 'pdf-page';
   wrapper.style.width = `${viewport.width * cssScale}px`;
   wrapper.style.height = `${viewport.height * cssScale}px`;
+
+  const translationColumn = document.createElement('div');
+  translationColumn.className = 'translation-column';
+  translationColumn.style.height = `${viewport.height * cssScale}px`;
 
   const canvas = document.createElement('canvas');
   canvas.width = viewport.width;
@@ -60,7 +84,9 @@ async function renderPage(page, container) {
 
   wrapper.appendChild(canvas);
   wrapper.appendChild(textLayerDiv);
-  container.appendChild(wrapper);
+  row.appendChild(wrapper);
+  row.appendChild(translationColumn);
+  container.appendChild(row);
 
   await page.render({ canvasContext: ctx, viewport }).promise;
 

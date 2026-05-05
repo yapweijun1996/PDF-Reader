@@ -29,11 +29,26 @@ export function setTargetLang(lang) {
 
 export const MODES = {
   SELECTION: 'selection',
-  AUTO: 'auto'
+  SIDE: 'side',
+  BILINGUAL: 'bilingual'
 };
 
+export const MODE_LABELS = {
+  selection: 'Selection only',
+  side: 'Side panel',
+  bilingual: 'Bilingual columns'
+};
+
+export function isAutoMode(mode) {
+  return mode === MODES.SIDE || mode === MODES.BILINGUAL;
+}
+
 export function getTranslateMode() {
-  return localStorage.getItem(MODE_KEY) || MODES.SELECTION;
+  const raw = localStorage.getItem(MODE_KEY) || MODES.SELECTION;
+  // Migrate legacy 'auto' value (PR #3) -> 'side'
+  if (raw === 'auto') return MODES.SIDE;
+  if (![MODES.SELECTION, MODES.SIDE, MODES.BILINGUAL].includes(raw)) return MODES.SELECTION;
+  return raw;
 }
 
 export function setTranslateMode(mode) {
