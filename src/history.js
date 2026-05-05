@@ -194,17 +194,27 @@ async function renderGallery(drawerEl) {
         <div class="gallery-tags">
           ${(p.tags || []).slice(0, 3).map(t => `<span class="gallery-tag-chip">${escapeHtml(t)}</span>`).join('')}
         </div>
+        <div class="gallery-actions">
+          <button class="gallery-action gallery-open-here" data-id="${escapeHtml(p.id)}" type="button">Open here</button>
+          <a class="gallery-action gallery-open-link" href="${escapeAttrUrl(p.url)}" target="_blank" rel="noopener" title="Open in browser tab">↗ Browser</a>
+          <a class="gallery-action gallery-download-link" href="${escapeAttrUrl(p.url)}" download="${escapeAttrUrl(p.id)}.pdf" target="_blank" rel="noopener" title="Download PDF">⬇ Download</a>
+        </div>
       </article>
     `).join('');
-    grid.querySelectorAll('.gallery-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const id = card.dataset.id;
+    grid.querySelectorAll('.gallery-open-here').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
         const entry = manifest.papers.find(p => p.id === id);
         if (entry && openGalleryCallback) {
           closeDrawer(drawerEl);
           openGalleryCallback(entry);
         }
       });
+    });
+    // Prevent the card-level click bubble interfering with anchor link clicks
+    grid.querySelectorAll('.gallery-open-link, .gallery-download-link').forEach(a => {
+      a.addEventListener('click', (e) => e.stopPropagation());
     });
   }
 
@@ -222,6 +232,15 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
+}
+
+function escapeAttrUrl(s) {
+  // Only allow http(s):, mailto:, tel:; otherwise blank to avoid javascript: injection
+  const url = String(s || '').trim();
+  if (!/^(https?:|mailto:|tel:)/i.test(url) && !url.startsWith('/') && !url.startsWith('./')) {
+    return '';
+  }
+  return url.replace(/"/g, '%22');
 }
 
 function formatSize(bytes) {

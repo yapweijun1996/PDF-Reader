@@ -23,6 +23,7 @@
 
 import { getExplain, putExplain } from './db.js';
 import { detectLang } from './lang-detect.js';
+import { callModel } from './translator.js';
 
 const SCHEMA_VERSION = 2;
 
@@ -44,14 +45,7 @@ export async function explain(phrase, contextParagraph, lang, docHash) {
     }]
   };
 
-  const result = await window.callGeminiAPI(
-    'gemma-3-27b-it',
-    userMessage,
-    [],
-    { temperature: 0.3, maxOutputTokens: 1600 }
-  );
-
-  const raw = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+  const raw = await callModel(userMessage, { temperature: 0.3, maxOutputTokens: 1600 });
   const parsed = parseJsonLoose(raw) || {};
 
   const payload = {

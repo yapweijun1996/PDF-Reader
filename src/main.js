@@ -15,6 +15,7 @@ import { toast } from './toast.js';
 import { initOfflineBanner } from './offline.js';
 import { initInstallPrompt } from './install.js';
 import { initBottomSheet } from './bottom-sheet.js';
+import { initSettingsModal } from './settings-modal.js';
 import { registerSW } from 'virtual:pwa-register';
 
 const viewer = () => document.getElementById('viewer');
@@ -236,6 +237,7 @@ async function boot() {
     panel: document.getElementById('translationPanel'),
     handle: document.getElementById('panelHandle')
   });
+  initSettingsModal({ openButton: document.getElementById('settingsBtn') });
 
   initHistoryDrawer({
     drawerEl: document.getElementById('historyDrawer'),

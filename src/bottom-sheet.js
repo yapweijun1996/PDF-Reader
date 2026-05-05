@@ -9,7 +9,7 @@
 const SNAP = {
   collapsed: 0.88, // translateY = 88vh (only ~12vh visible — header)
   half:      0.50, // 50vh hidden = ~50vh visible
-  full:      0.05  // 5vh hidden = nearly full screen
+  full:      0.00  // fully cover (panel sits at top, includes topbar area)
 };
 
 const VELOCITY_THRESHOLD = 0.4; // px/ms — fast flick wins over distance

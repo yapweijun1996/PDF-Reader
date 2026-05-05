@@ -468,6 +468,156 @@ button { font-family: inherit; }
   border-radius: 8px;
   text-transform: capitalize;
 }
+
+.gallery-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.gallery-action {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.gallery-action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.gallery-open-here {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* -------- Settings modal -------- */
+.settings-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  padding: 16px;
+}
+.settings-modal[hidden] { display: none; }
+.settings-modal-open { opacity: 1; pointer-events: auto; }
+
+.settings-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  transform: translateY(20px);
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.settings-modal-open .settings-card { transform: translateY(0); }
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.settings-header h2 { margin: 0; font-size: 16px; color: var(--text); }
+.settings-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  border-radius: 6px;
+}
+.settings-close:hover { background: var(--border); color: var(--text); }
+
+.settings-body { padding: 16px; }
+.settings-intro {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+.settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.settings-row > span {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.settings-row select,
+.settings-row input {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  width: 100%;
+}
+.settings-row select:focus,
+.settings-row input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.settings-hint {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+.settings-hint a { color: var(--accent); }
+.settings-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.settings-clear,
+.settings-save {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 36px;
+}
+.settings-clear {
+  background: transparent;
+  color: var(--muted);
+}
+.settings-clear:hover { color: #fca5a5; border-color: #b91c1c; }
+.settings-save {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.settings-save:hover { background: rgba(96, 165, 250, 0.32); }
 .drawer-loading,
 .drawer-empty {
   color: var(--muted);
@@ -1223,10 +1373,22 @@ body.mode-overlay .translation-panel.panel-open {
     box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
     transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.3, 1);
   }
+  .translation-panel {
+    height: 100vh; /* full possible height; transform decides what's visible */
+  }
   .translation-panel.panel-open.snap-collapsed { transform: translateY(88vh); }
   .translation-panel.panel-open.snap-half      { transform: translateY(50vh); }
-  .translation-panel.panel-open.snap-full      { transform: translateY(5vh);  }
+  .translation-panel.panel-open.snap-full      { transform: translateY(0);    } /* fully cover */
   .translation-panel.panel-open                { transform: translateY(50vh); }
+  .translation-panel.snap-full {
+    z-index: 60; /* above topbar (50) when fully expanded */
+    border-radius: 0;
+    padding-top: var(--safe-top);
+  }
+  /* Bottom padding so last card isn't hidden behind home-indicator */
+  .translation-panel .panel-list {
+    padding-bottom: calc(48px + var(--safe-bottom));
+  }
 
   body.auto-mode .viewer { padding-bottom: calc(50vh + var(--safe-bottom)); }
 

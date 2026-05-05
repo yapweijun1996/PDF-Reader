@@ -73,6 +73,23 @@ export async function putExplain(docHash, phrase, lang, payload) {
   await set(key, payload);
 }
 
+const USER_CONFIG_KEY = 'config::user';
+
+export async function getUserConfig() {
+  return (await get(USER_CONFIG_KEY)) || {};
+}
+
+export async function setUserConfig(patch) {
+  const current = await getUserConfig();
+  const merged = { ...current, ...patch };
+  await set(USER_CONFIG_KEY, merged);
+  return merged;
+}
+
+export async function clearUserConfig() {
+  await del(USER_CONFIG_KEY);
+}
+
 function normalize(s) {
   return s.trim().toLowerCase().slice(0, 200);
 }
