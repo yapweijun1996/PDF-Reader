@@ -796,16 +796,21 @@ button { font-family: inherit; }
   body.mode-bilingual .translation-column {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
     flex: 1 1 auto;
     min-width: 320px;
-    max-width: 760px;
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 14px;
+    padding: 16px;
     overflow-y: auto;
     position: relative;
+  }
+  /* On very wide screens, cap the inner card width so paragraphs stay
+     comfortable to read, but let the column itself fill the viewport. */
+  body.mode-bilingual .translation-card-bilingual {
+    max-width: 720px;
+    width: 100%;
   }
   body.mode-bilingual .translation-panel.panel-open {
     transform: translateX(100%); /* hide side panel; columns are inline */
