@@ -216,6 +216,7 @@ button { font-family: inherit; }
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   margin: 0 auto;
   max-width: calc(100vw - 16px);
+  overflow: hidden; /* clip any translation overlay that exceeds page bbox */
 }
 .pdf-page canvas { display: block; max-width: 100%; height: auto; }
 
@@ -435,6 +436,13 @@ button { font-family: inherit; }
   padding: 14px 44px 14px 14px;
 }
 
+.tooltip-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.tooltip-row .tts-btn { flex-shrink: 0; }
+
 .tooltip-source {
   color: var(--muted);
   font-size: 12px;
@@ -457,7 +465,10 @@ button { font-family: inherit; }
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 16px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
+.tooltip-source { flex: 1 1 auto; min-width: 0; }
 .tooltip-close {
   position: absolute;
   top: 6px;
@@ -767,17 +778,18 @@ button { font-family: inherit; }
   align-items: flex-start;
   gap: 24px;
   width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
-  justify-content: center;
+  max-width: 100%;
+  margin: 0;
+  padding: 0 16px;
+  justify-content: flex-start;
 }
 .bilingual-row .pdf-page { flex-shrink: 0; }
 
 .translation-column {
   display: none;
   flex: 1 1 auto;
-  min-width: 280px;
-  max-width: 520px;
+  min-width: 320px;
+  max-width: 760px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;

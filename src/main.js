@@ -184,7 +184,7 @@ async function boot() {
   initTooltip(async (phrase) => {
     const lang = getTargetLang();
     return explain(phrase, lastSelectionContext, lang, currentDocHash);
-  });
+  }, getTargetLang);
 
   mountLangSelector(document.getElementById('targetLang'), () => {
     const m = getTranslateMode();

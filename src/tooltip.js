@@ -8,15 +8,34 @@ const closeBtn = () => document.getElementById('tooltipClose');
 const explainBtn = () => document.getElementById('tooltipExplain');
 const explainBody = () => document.getElementById('tooltipExplainBody');
 const handleEl = () => document.getElementById('tooltipHandle');
+const speakSrcBtn = () => document.getElementById('tooltipSpeakSrc');
+const speakTgtBtn = () => document.getElementById('tooltipSpeakTgt');
 
 let initialized = false;
 let onExplainClick = null;
+let getTargetLangCb = null;
 let currentSource = '';
 
-export function initTooltip(onExplain) {
+export function initTooltip(onExplain, getTargetLang) {
   if (initialized) return;
   initialized = true;
   onExplainClick = onExplain;
+  getTargetLangCb = getTargetLang;
+
+  speakSrcBtn().addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!currentSource) return;
+    const lang = detectLang(currentSource).bcp47;
+    speakWith(speakSrcBtn(), currentSource, lang);
+  });
+  speakTgtBtn().addEventListener('click', (e) => {
+    e.stopPropagation();
+    const text = targetEl().textContent || '';
+    if (!text || /^Translating|^⚠️/.test(text)) return;
+    const langName = getTargetLangCb?.() || 'English';
+    const tag = tts.langTagFor(langName);
+    speakWith(speakTgtBtn(), text, tag);
+  });
 
   closeBtn().addEventListener('click', hide);
 
@@ -263,6 +282,19 @@ function wireExplainInteractions() {
       if (tog) tog.textContent = collapsed ? '−' : '+';
     });
   });
+}
+
+function speakWith(btn, text, langTag) {
+  if (!text) return;
+  tts.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = langTag || 'en-US';
+  const candidates = tts.listVoicesForLang(utter.lang);
+  if (candidates.length) utter.voice = candidates[0];
+  btn.classList.add('tts-btn-active');
+  utter.addEventListener('end', () => btn.classList.remove('tts-btn-active'));
+  utter.addEventListener('error', () => btn.classList.remove('tts-btn-active'));
+  window.speechSynthesis.speak(utter);
 }
 
 function ttsSvg() {

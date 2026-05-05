@@ -166,28 +166,37 @@ function ensureCard(job, mode) {
 }
 
 function ensureOverlayCard(job) {
-  // Find the paragraph anchor inside the textLayer that matches this segId
-  // and place a translation card directly over it.
+  // Find the paragraph anchor and place a translation card on the .pdf-page
+  // (sibling of the textLayer). pdf-page is position:relative and clips its
+  // overflow, so the card cannot escape into the page background regardless
+  // of how the textLayer renders its scale-factor transforms.
   const anchor = document.querySelector(
     `.paragraph-anchor[data-seg-id="${job.segId}"]`
   );
   if (!anchor) return ensurePanelCard(job);
-  const textLayer = anchor.parentElement;
-  if (!textLayer) return ensurePanelCard(job);
+  const pdfPage = anchor.closest('.pdf-page');
+  if (!pdfPage) return ensurePanelCard(job);
 
-  let card = textLayer.querySelector(`.translation-overlay[data-seg-id="${job.segId}"]`);
+  let card = pdfPage.querySelector(`.translation-overlay[data-seg-id="${job.segId}"]`);
   if (card) return card;
+
+  // Read computed offsets relative to pdf-page so we don't depend on
+  // textLayer's transform/scale-factor handling.
+  const left = anchor.offsetLeft;
+  const top = anchor.offsetTop;
+  const width = anchor.offsetWidth;
+  const height = anchor.offsetHeight;
 
   card = document.createElement('div');
   card.className = 'translation-overlay';
   card.dataset.segId = job.segId;
   card.style.position = 'absolute';
-  card.style.left = anchor.style.left;
-  card.style.top = anchor.style.top;
-  card.style.width = anchor.style.width;
-  card.style.minHeight = anchor.style.height;
+  card.style.left = `${left}px`;
+  card.style.top = `${top}px`;
+  card.style.width = `${width}px`;
+  card.style.minHeight = `${height}px`;
   card.innerHTML = `<div class="card-target"></div>`;
-  textLayer.appendChild(card);
+  pdfPage.appendChild(card);
   return card;
 }
 
