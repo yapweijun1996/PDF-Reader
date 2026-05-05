@@ -28,7 +28,10 @@ export function extractParagraphs(textLayer) {
     if (!cur) { cur = newGroup(it); continue; }
     const lineH = Math.max(it.height, 12);
     const gap = it.top - cur.bottom;
-    if (gap < lineH * 1.4) {
+    // Within a paragraph, gap between line bottom and next line top is ~0.2x
+    // line height. Between paragraphs it's typically ~1.0-1.2x. Threshold
+    // 0.6 separates them while staying tolerant to slight irregularities.
+    if (gap < lineH * 0.6) {
       cur.items.push(it);
       cur.bottom = Math.max(cur.bottom, it.top + it.height);
       cur.left = Math.min(cur.left, it.left);
