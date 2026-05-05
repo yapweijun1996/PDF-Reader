@@ -759,29 +759,36 @@ button { font-family: inherit; }
   display: flex;
   align-items: flex-start;
   gap: 24px;
+  width: 100%;
+  max-width: 1400px;
   margin: 0 auto;
-  width: max-content;
-  max-width: 100%;
+  justify-content: center;
 }
+.bilingual-row .pdf-page { flex-shrink: 0; }
+
 .translation-column {
   display: none;
-  width: 320px;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 280px;
+  max-width: 520px;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px;
+  border-radius: 8px;
+  padding: 14px;
   overflow-y: auto;
   position: relative;
 }
 
 @media (min-width: 1024px) {
+  body.mode-bilingual .viewer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
   body.mode-bilingual .translation-column {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
   }
-  body.mode-bilingual .viewer { padding-right: 8px; }
   body.mode-bilingual .translation-panel.panel-open {
     transform: translateX(100%); /* hide side panel; columns are inline */
   }
@@ -795,10 +802,39 @@ button { font-family: inherit; }
 .translation-card-bilingual {
   background: var(--panel-2);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 13px;
-  line-height: 1.5;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  position: relative;
+  transition: border-color 0.15s;
+}
+.translation-card-bilingual:hover {
+  border-color: var(--accent);
+}
+.translation-card-bilingual + .translation-card-bilingual {
+  margin-top: 0; /* gap is on flex parent */
+}
+.translation-card-bilingual .card-source {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 12px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.translation-card-bilingual .card-arrow {
+  display: none;
+}
+.translation-card-bilingual .card-target {
+  color: var(--text);
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* -------- Translation panel (auto-translate mode) -------- */

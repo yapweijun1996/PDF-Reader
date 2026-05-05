@@ -23,7 +23,10 @@ function computeCssScale(viewport, container) {
   }
   let available = container.clientWidth - 32;
   if (isBilingualLayoutEligible()) {
-    available = available - BILINGUAL_COLUMN_WIDTH - BILINGUAL_GUTTER;
+    // Reserve roughly half of the container for translation column +
+    // gutter; whichever is smaller wins so the canvas stays readable.
+    const halfWidth = Math.max(420, container.clientWidth * 0.55) - BILINGUAL_GUTTER;
+    available = Math.min(available, halfWidth);
   }
   return Math.min(1, Math.max(0.4, available / viewport.width));
 }
