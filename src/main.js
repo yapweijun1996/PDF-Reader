@@ -74,7 +74,7 @@ function autoCtx() {
 }
 
 function applyMode(mode) {
-  document.body.classList.remove('mode-selection', 'mode-side', 'mode-bilingual', 'mode-reader', 'auto-mode');
+  document.body.classList.remove('mode-selection', 'mode-side', 'mode-bilingual', 'mode-overlay', 'mode-reader', 'auto-mode');
   document.body.classList.add(`mode-${mode}`);
   if (isAutoMode(mode)) document.body.classList.add('auto-mode');
 

@@ -39,6 +39,7 @@ export function stopAutoTranslate() {
     if (list) list.innerHTML = '';
   }
   document.querySelectorAll('.paragraph-anchor').forEach(el => el.remove());
+  document.querySelectorAll('.translation-overlay').forEach(el => el.remove());
   document.querySelectorAll('.translation-column').forEach(col => { col.innerHTML = ''; });
 }
 
@@ -50,6 +51,7 @@ export function rescanPages() {
   if (!active) return;
   if (observer) observer.disconnect();
   document.querySelectorAll('.paragraph-anchor').forEach(el => el.remove());
+  document.querySelectorAll('.translation-overlay').forEach(el => el.remove());
   document.querySelectorAll('.translation-column').forEach(col => { col.innerHTML = ''; });
   if (panelEl) {
     const list = panelEl.querySelector('.panel-list');
@@ -159,7 +161,34 @@ async function processJob(job) {
 
 function ensureCard(job, mode) {
   if (mode === 'bilingual') return ensureBilingualCard(job);
+  if (mode === 'overlay') return ensureOverlayCard(job);
   return ensurePanelCard(job);
+}
+
+function ensureOverlayCard(job) {
+  // Find the paragraph anchor inside the textLayer that matches this segId
+  // and place a translation card directly over it.
+  const anchor = document.querySelector(
+    `.paragraph-anchor[data-seg-id="${job.segId}"]`
+  );
+  if (!anchor) return ensurePanelCard(job);
+  const textLayer = anchor.parentElement;
+  if (!textLayer) return ensurePanelCard(job);
+
+  let card = textLayer.querySelector(`.translation-overlay[data-seg-id="${job.segId}"]`);
+  if (card) return card;
+
+  card = document.createElement('div');
+  card.className = 'translation-overlay';
+  card.dataset.segId = job.segId;
+  card.style.position = 'absolute';
+  card.style.left = anchor.style.left;
+  card.style.top = anchor.style.top;
+  card.style.width = anchor.style.width;
+  card.style.minHeight = anchor.style.height;
+  card.innerHTML = `<div class="card-target"></div>`;
+  textLayer.appendChild(card);
+  return card;
 }
 
 function ensurePanelCard(job) {
