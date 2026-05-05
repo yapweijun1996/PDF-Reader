@@ -9,7 +9,9 @@
 import { getUserConfig, setUserConfig, clearUserConfig } from './db.js';
 import { toast } from './toast.js';
 import { getAppTheme, setAppTheme, THEMES } from './theme.js';
-import { GEMINI_VOICES } from './tts-gemini.js';
+import { GEMINI_VOICES, synthesizeGemini } from './tts-gemini.js';
+import { getTargetLang } from './settings.js';
+import { langTagFor } from './tts.js';
 
 const MODEL_OPTIONS = {
   gemini: [
@@ -120,6 +122,14 @@ async function renderForm() {
         <span>Voice</span>
         <select class="settings-tts-voice"></select>
       </label>
+      <div class="settings-row settings-row-tts-preview">
+        <button class="settings-preview-tts" type="button">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <polygon points="6 4 20 12 6 20" />
+          </svg>
+          <span class="preview-label">Preview voice</span>
+        </button>
+      </div>
     </div>
 
     <div class="settings-actions">
@@ -156,6 +166,57 @@ async function renderForm() {
   ttsProviderSel.addEventListener('change', () => {
     body.querySelector('.settings-row-tts-voice').style.display =
       ttsProviderSel.value === 'gemini' ? 'flex' : 'none';
+  });
+
+  // Preview voice — uses current inputs without requiring Save first
+  const previewBtn = body.querySelector('.settings-preview-tts');
+  let previewAudio = null;
+  previewBtn.addEventListener('click', async () => {
+    if (previewAudio && !previewAudio.paused) {
+      previewAudio.pause();
+      previewAudio = null;
+      previewBtn.querySelector('.preview-label').textContent = 'Preview voice';
+      return;
+    }
+    const provider = ttsProviderSel.value;
+    const voice = ttsVoiceSel.value;
+    const apiKey = body.querySelector('.settings-apikey').value.trim();
+    const targetLang = getTargetLang();
+    const sample = sampleTextFor(targetLang);
+
+    previewBtn.disabled = true;
+    previewBtn.querySelector('.preview-label').textContent = 'Loading…';
+    try {
+      if (provider === 'gemini') {
+        if (!apiKey) {
+          toast('Enter your API key first to preview Gemini voices', { duration: 3000 });
+          return;
+        }
+        const blob = await synthesizeGemini({ text: sample, voice, apiKey });
+        const url = URL.createObjectURL(blob);
+        previewAudio = new Audio(url);
+        previewAudio.addEventListener('ended', () => {
+          previewBtn.querySelector('.preview-label').textContent = 'Preview voice';
+          URL.revokeObjectURL(url);
+        });
+        previewBtn.querySelector('.preview-label').textContent = 'Stop';
+        await previewAudio.play();
+      } else {
+        const utter = new SpeechSynthesisUtterance(sample);
+        utter.lang = langTagFor(targetLang);
+        utter.addEventListener('end', () => {
+          previewBtn.querySelector('.preview-label').textContent = 'Preview voice';
+        });
+        previewBtn.querySelector('.preview-label').textContent = 'Stop';
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utter);
+      }
+    } catch (e) {
+      toast(`⚠️ ${e.message || e}`, { duration: 4000 });
+      previewBtn.querySelector('.preview-label').textContent = 'Preview voice';
+    } finally {
+      previewBtn.disabled = false;
+    }
   });
 
   // Theme segmented control
@@ -226,4 +287,26 @@ function escapeAttr(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
+}
+
+const SAMPLE_TEXTS = {
+  'English': "Hello! This is a preview of how I'll read translations to you.",
+  'Chinese (Simplified)': '你好！这是我朗读译文时的声音预览。',
+  'Chinese (Traditional)': '你好！這是我朗讀譯文時的聲音預覽。',
+  'Japanese': 'こんにちは。翻訳を読み上げる声のプレビューです。',
+  'Korean': '안녕하세요. 번역을 읽어 드릴 목소리 미리듣기입니다.',
+  'Spanish': 'Hola, esta es una vista previa de cómo leeré las traducciones.',
+  'French': "Bonjour, ceci est un aperçu de la voix qui lira vos traductions.",
+  'German': 'Hallo, dies ist eine Vorschau der Stimme, die Übersetzungen vorliest.',
+  'Portuguese': 'Olá, esta é uma prévia de como vou ler as traduções para você.',
+  'Arabic': 'مرحباً، هذه معاينة لصوت قراءة الترجمات.',
+  'Hindi': 'नमस्ते, यह अनुवाद पढ़ने वाली आवाज़ का पूर्वावलोकन है।',
+  'Thai': 'สวัสดี นี่คือตัวอย่างเสียงที่จะใช้อ่านคำแปลให้คุณฟัง',
+  'Vietnamese': 'Xin chào, đây là bản xem trước giọng đọc bản dịch.',
+  'Malay': 'Helo, ini adalah pratonton suara yang akan membacakan terjemahan.',
+  'Indonesian': 'Halo, ini adalah pratinjau suara yang akan membacakan terjemahan.'
+};
+
+function sampleTextFor(lang) {
+  return SAMPLE_TEXTS[lang] || SAMPLE_TEXTS.English;
 }

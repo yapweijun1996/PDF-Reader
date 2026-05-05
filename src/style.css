@@ -701,6 +701,25 @@ button { font-family: inherit; }
   border-color: var(--accent);
 }
 .settings-save:hover { background: rgba(96, 165, 250, 0.32); }
+
+.settings-preview-tts {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  min-height: 36px;
+  transition: background 0.15s;
+}
+.settings-preview-tts:hover { background: rgba(96, 165, 250, 0.32); }
+.settings-preview-tts:disabled { opacity: 0.6; cursor: wait; }
+.settings-preview-tts svg { width: 12px; height: 12px; }
 .drawer-loading,
 .drawer-empty {
   color: var(--muted);
