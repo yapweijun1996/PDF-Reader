@@ -773,49 +773,43 @@ button { font-family: inherit; }
 }
 
 /* -------- Bilingual layout (per-page right column) -------- */
+/* By default, bilingual-row is a transparent block wrapper — it only
+   becomes a flex container when body.mode-bilingual is active. This
+   keeps Selection / Side / Overlay / Reader modes unaffected. */
 .bilingual-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 24px;
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
-  padding: 0 16px;
-  justify-content: flex-start;
+  display: contents;
 }
-.bilingual-row .pdf-page { flex-shrink: 0; }
-
-.translation-column {
-  display: none;
-  flex: 1 1 auto;
-  min-width: 320px;
-  max-width: 760px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 14px;
-  overflow-y: auto;
-  position: relative;
-}
+.translation-column { display: none; }
 
 @media (min-width: 1024px) {
-  body.mode-bilingual .viewer {
-    padding-left: 16px;
-    padding-right: 16px;
+  body.mode-bilingual .bilingual-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 24px;
+    width: 100%;
+    padding: 0 16px;
+  }
+  body.mode-bilingual .bilingual-row .pdf-page {
+    flex-shrink: 0;
   }
   body.mode-bilingual .translation-column {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    flex: 1 1 auto;
+    min-width: 320px;
+    max-width: 760px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    overflow-y: auto;
+    position: relative;
   }
   body.mode-bilingual .translation-panel.panel-open {
     transform: translateX(100%); /* hide side panel; columns are inline */
   }
-}
-
-@media (max-width: 1023px) {
-  /* Bilingual on narrow screens degrades to side-panel layout */
-  body.mode-bilingual .translation-column { display: none; }
 }
 
 .translation-card-bilingual {
