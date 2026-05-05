@@ -64,11 +64,48 @@ function newGroup(it) {
   };
 }
 
+// Tighter noise filter — academic PDFs surface a lot of metadata fragments
+// (author lists, emails, footnote markers, citation lists, table headers)
+// that translate badly and are pure noise when read aloud.
 function shouldTranslate(text) {
   const t = text.trim();
   if (t.length < PARAGRAPH_MIN_CHARS) return false;
+
   const wordChars = (t.match(/[A-Za-z一-鿿぀-ヿ]/g) || []).length;
   if (wordChars / t.length < 0.5) return false;
+
+  // 1) Email-heavy lines (author email blocks)
+  const emails = t.match(/[\w.+-]+@[\w.-]+\.\w+/g) || [];
+  const emailLen = emails.reduce((s, e) => s + e.length, 0);
+  if (emailLen / t.length > 0.3) return false;
+
+  // 2) Footnote-marker prefix + short text (* † ‡ § ¶ followed by a name)
+  if (/^[\s*†‡§¶★]{1,20}[A-Z][\w.\s]{0,80}$/.test(t) && t.length < 100) return false;
+  if (/^[*†‡§¶★]+\s/.test(t) && t.length < 80) return false;
+
+  // 3) Repeated-token lines (table rows: "X X Y Y Z Z")
+  const tokens = t.split(/\s+/).filter(Boolean);
+  if (tokens.length >= 4) {
+    const unique = new Set(tokens.map(s => s.toLowerCase()));
+    if (unique.size / tokens.length < 0.4) return false;
+  }
+
+  // 4) Long strings without any space, CJK, or punctuation — usually URLs / IDs
+  if (t.length > 30 && !/\s/.test(t) && !/[一-鿿぀-ヿ。、！？]/.test(t)) return false;
+
+  // 5) Author-list heuristic: ≥4 English tokens, all start with uppercase,
+  //    and no lowercase function words (the/of/and/in/is/with/for/a/an).
+  const englishTokens = t.match(/\b[A-Za-z][A-Za-z'.-]*\b/g) || [];
+  if (englishTokens.length >= 4) {
+    const allTitleCase = englishTokens.every(w => /^[A-Z]/.test(w));
+    const hasFunctionWord = /\b(the|of|and|in|is|with|for|on|to|by|that|this|are|was|were|from|as|or|but|we|our|these|those|their|its)\b/i.test(t);
+    if (allTitleCase && !hasFunctionWord) return false;
+  }
+
+  // 6) Symbol-heavy / citation lists ("[1, 2, 5]", "[35, 2, 5]")
+  const digitsAndPunct = (t.match(/[\d\[\],.\-:;()\/]/g) || []).length;
+  if (digitsAndPunct / t.length > 0.5) return false;
+
   return true;
 }
 

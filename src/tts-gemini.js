@@ -50,14 +50,39 @@ export const GEMINI_VOICES = [
   { name: 'Sulafat',        tone: 'Warm' }
 ];
 
+// Gemini TTS streaming generates ≤ ~30 seconds of audio per request.
+// Empirically that's around 500 characters. To avoid truncation on long
+// paragraphs, we split at sentence boundaries (with hard-fallback by
+// length) and concatenate the raw PCM frames before adding the WAV header.
+const MAX_CHARS_PER_CHUNK = 500;
+const MAX_CHUNKS_PER_REQUEST = 8; // soft cap so we don't hammer quota
+
 /**
  * Synthesize text to a playable Blob URL (audio/wav).
- * Throws on missing apiKey or network/API failure.
+ * Long text is split into sentence chunks; their PCM is concatenated
+ * and wrapped once at the end. Throws on missing apiKey or API failure.
  */
 export async function synthesizeGemini({ text, voice = 'Zephyr', apiKey, temperature = 1, signal }) {
   if (!apiKey) throw new Error('Gemini TTS requires an API key (Settings → AI Provider).');
   if (!text || !text.trim()) throw new Error('Empty text');
 
+  const chunks = splitForTts(text, MAX_CHARS_PER_CHUNK).slice(0, MAX_CHUNKS_PER_REQUEST);
+  console.log(`[tts-gemini] ${chunks.length} chunk(s) for ${text.length} chars`);
+
+  const pcmParts = [];
+  let detectedSampleRate = SAMPLE_RATE;
+  for (const chunk of chunks) {
+    const { pcm, sampleRate } = await synthesizeChunkPcm({ text: chunk, voice, apiKey, temperature, signal });
+    pcmParts.push(pcm);
+    if (sampleRate) detectedSampleRate = sampleRate;
+  }
+
+  const merged = concatBytes(pcmParts);
+  const wavBytes = wrapPcmInWav(merged, detectedSampleRate, CHANNELS, BITS_PER_SAMPLE);
+  return new Blob([wavBytes], { type: 'audio/wav' });
+}
+
+async function synthesizeChunkPcm({ text, voice, apiKey, temperature, signal }) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(TTS_MODEL)}:streamGenerateContent?key=${encodeURIComponent(apiKey)}`;
   const body = {
     contents: [{ role: 'user', parts: [{ text }] }],
@@ -107,32 +132,49 @@ export async function synthesizeGemini({ text, voice = 'Zephyr', apiKey, tempera
     }
   }
   if (base64Parts.length === 0) throw new Error('Gemini TTS: no audio in response');
-  console.log('[tts-gemini] mimeType:', mimeType, 'chunks:', base64Parts.length);
 
-  // Parse rate from mimeType when present (e.g. "audio/l16; rate=24000; channels=1")
   const rateMatch = /rate=(\d+)/i.exec(mimeType);
   if (rateMatch) sampleRate = parseInt(rateMatch[1], 10);
 
-  let pcmBytes = base64ConcatToBytes(base64Parts);
-
-  // RFC 2586 says audio/L16 is big-endian PCM. WAV container expects
-  // little-endian. If the response declares L16 explicitly, swap byte
-  // pairs. Most Gemini TTS responses tested in the wild actually arrive
-  // little-endian (Google convention), but we honor the declared format.
-  if (/audio\/l16/i.test(mimeType)) {
-    pcmBytes = swapEndian16(pcmBytes);
-  }
-
-  const wavBytes = wrapPcmInWav(pcmBytes, sampleRate, CHANNELS, BITS_PER_SAMPLE);
-  return new Blob([wavBytes], { type: 'audio/wav' });
+  const pcmBytes = base64ConcatToBytes(base64Parts);
+  // Gemini TTS sends little-endian PCM in practice (despite audio/L16 label).
+  return { pcm: pcmBytes, sampleRate };
 }
 
-function swapEndian16(bytes) {
-  const out = new Uint8Array(bytes.length);
-  for (let i = 0; i + 1 < bytes.length; i += 2) {
-    out[i] = bytes[i + 1];
-    out[i + 1] = bytes[i];
+/**
+ * Split text into TTS-friendly chunks at sentence boundaries.
+ * Falls back to hard length-based splits for sentences that exceed maxLen.
+ */
+function splitForTts(text, maxLen) {
+  const trimmed = text.trim();
+  if (trimmed.length <= maxLen) return [trimmed];
+  // Split on Latin or CJK sentence-ending punctuation, keeping it attached
+  const sentences = trimmed.split(/(?<=[.!?。！？])\s*/).filter(Boolean);
+  const chunks = [];
+  let current = '';
+  for (const s of sentences) {
+    if (s.length > maxLen) {
+      if (current) { chunks.push(current); current = ''; }
+      // Hard split overlong sentence
+      for (let i = 0; i < s.length; i += maxLen) chunks.push(s.slice(i, i + maxLen));
+      continue;
+    }
+    if ((current + s).length <= maxLen) {
+      current += s;
+    } else {
+      if (current) chunks.push(current);
+      current = s;
+    }
   }
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+function concatBytes(arrs) {
+  const total = arrs.reduce((s, a) => s + a.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const a of arrs) { out.set(a, off); off += a.length; }
   return out;
 }
 
