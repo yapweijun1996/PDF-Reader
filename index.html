@@ -12,7 +12,11 @@
   </head>
   <body>
     <header class="topbar">
-      <h1 class="title">PDF Reader</h1>
+      <div class="topbar-left">
+        <button id="historyBtn" class="icon-btn" title="History" aria-label="History">📂</button>
+        <button id="uploadBtn" class="icon-btn" title="Open PDF" aria-label="Open PDF">📤</button>
+        <h1 class="title">PDF Reader</h1>
+      </div>
       <div class="topbar-actions">
         <label class="lang-select">
           <span class="lang-label">Translate to</span>
@@ -23,10 +27,28 @@
 
     <main id="viewer" class="viewer" aria-label="PDF viewer"></main>
 
+    <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden />
+
+    <div id="dropZone" class="drop-zone" aria-hidden="true">
+      <div class="drop-zone-msg">📥 Drop PDF to open</div>
+    </div>
+
+    <aside id="historyDrawer" class="drawer" hidden>
+      <div class="drawer-panel">
+        <div class="drawer-header">
+          <h2>History</h2>
+          <button id="historyClose" class="icon-btn" aria-label="Close">×</button>
+        </div>
+        <div class="drawer-list"></div>
+      </div>
+    </aside>
+
     <div id="tooltip" class="tooltip" role="status" aria-live="polite" hidden>
       <div class="tooltip-source" id="tooltipSource"></div>
       <div class="tooltip-arrow">→</div>
       <div class="tooltip-target" id="tooltipTarget"></div>
+      <button class="explain-btn" id="tooltipExplain" hidden>📖 Explain</button>
+      <div class="explain-body" id="tooltipExplainBody" hidden></div>
       <button class="tooltip-close" id="tooltipClose" aria-label="Close">×</button>
     </div>
 

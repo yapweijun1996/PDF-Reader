@@ -9,14 +9,29 @@ const RENDER_SCALE = (() => {
   return baseScale * Math.min(dpr, 2);
 })();
 
-export async function renderPdf(url, container) {
+let currentPdf = null;
+
+/**
+ * Load and render a PDF from URL or ArrayBuffer/Blob source.
+ * @param {string|ArrayBuffer|Uint8Array} source
+ * @param {HTMLElement} container
+ * @returns {{ pdf, hasTextLayer }}
+ */
+export async function renderPdf(source, container) {
   container.innerHTML = '';
-  const pdf = await pdfjsLib.getDocument(url).promise;
+  const loadingTask = typeof source === 'string'
+    ? pdfjsLib.getDocument(source)
+    : pdfjsLib.getDocument({ data: source });
+  const pdf = await loadingTask.promise;
+  currentPdf = pdf;
+
+  let firstPageHasText = false;
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
-    await renderPage(page, container);
+    const renderInfo = await renderPage(page, container);
+    if (i === 1) firstPageHasText = renderInfo.textItemCount > 0;
   }
-  return pdf;
+  return { pdf, hasTextLayer: firstPageHasText };
 }
 
 async function renderPage(page, container) {
@@ -50,13 +65,38 @@ async function renderPage(page, container) {
   await page.render({ canvasContext: ctx, viewport }).promise;
 
   const textContent = await page.getTextContent();
-  const scaledViewport = page.getViewport({ scale: viewport.scale * cssScale });
-  const textLayer = new pdfjsLib.TextLayer({
-    textContentSource: textContent,
-    container: textLayerDiv,
-    viewport: scaledViewport
-  });
-  await textLayer.render();
+  const textItemCount = textContent?.items?.length || 0;
+  if (textItemCount > 0) {
+    const scaledViewport = page.getViewport({ scale: viewport.scale * cssScale });
+    const textLayer = new pdfjsLib.TextLayer({
+      textContentSource: textContent,
+      container: textLayerDiv,
+      viewport: scaledViewport
+    });
+    await textLayer.render();
+  }
+  return { textItemCount };
+}
+
+/**
+ * Render the first page of a PDF as a low-res PNG dataURL thumbnail.
+ */
+export async function renderThumbnail(source, maxWidth = 200) {
+  const loadingTask = typeof source === 'string'
+    ? pdfjsLib.getDocument(source)
+    : pdfjsLib.getDocument({ data: source });
+  const pdf = await loadingTask.promise;
+  const page = await pdf.getPage(1);
+  const baseViewport = page.getViewport({ scale: 1 });
+  const scale = maxWidth / baseViewport.width;
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+  const dataUrl = canvas.toDataURL('image/png');
+  pdf.destroy();
+  return dataUrl;
 }
 
 export function onSelection(handler) {
@@ -90,4 +130,8 @@ export function onSelection(handler) {
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed) lastText = '';
   });
+}
+
+export function getCurrentPdf() {
+  return currentPdf;
 }

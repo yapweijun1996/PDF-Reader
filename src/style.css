@@ -1,11 +1,13 @@
 :root {
   --bg: #0f172a;
   --panel: #1f2937;
+  --panel-2: #111827;
   --text: #e5e7eb;
   --muted: #9ca3af;
   --accent: #60a5fa;
+  --accent-soft: rgba(96, 165, 250, 0.18);
+  --border: #374151;
   --tooltip-bg: #111827;
-  --tooltip-border: #374151;
 }
 
 * { box-sizing: border-box; }
@@ -19,17 +21,25 @@ html, body {
   min-height: 100vh;
 }
 
+button { font-family: inherit; }
+
 .topbar {
   position: sticky;
   top: 0;
   z-index: 50;
   background: var(--panel);
-  border-bottom: 1px solid #374151;
+  border-bottom: 1px solid var(--border);
   padding: 8px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .title {
@@ -38,6 +48,24 @@ html, body {
   font-weight: 600;
   letter-spacing: 0.2px;
 }
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.icon-btn:hover { background: #1e293b; }
+.icon-btn:active { background: #0b1220; }
 
 .lang-select {
   display: flex;
@@ -48,9 +76,9 @@ html, body {
 }
 
 .lang-select select {
-  background: #111827;
+  background: var(--panel-2);
   color: var(--text);
-  border: 1px solid #374151;
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 13px;
@@ -60,6 +88,7 @@ html, body {
 @media (max-width: 480px) {
   .lang-label { display: none; }
   .lang-select select { max-width: 140px; }
+  .title { font-size: 14px; }
 }
 
 .viewer {
@@ -77,10 +106,7 @@ html, body {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   margin: 0 auto;
 }
-
-.pdf-page canvas {
-  display: block;
-}
+.pdf-page canvas { display: block; }
 
 .textLayer {
   position: absolute;
@@ -91,7 +117,6 @@ html, body {
   user-select: text;
   -webkit-user-select: text;
 }
-
 .textLayer span,
 .textLayer br {
   color: transparent;
@@ -100,24 +125,166 @@ html, body {
   cursor: text;
   transform-origin: 0% 0%;
 }
+.textLayer ::selection { background: rgba(96, 165, 250, 0.45); }
 
-.textLayer ::selection {
-  background: rgba(96, 165, 250, 0.45);
+/* Drop zone (drag overlay) */
+.drop-zone {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.88);
+  z-index: 300;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.drop-zone-active { display: flex; }
+.drop-zone-msg {
+  border: 3px dashed var(--accent);
+  padding: 40px 60px;
+  border-radius: 16px;
+  font-size: 24px;
+  color: var(--accent);
+  background: rgba(17, 24, 39, 0.6);
 }
 
+/* History drawer */
+.drawer {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 250;
+  display: flex;
+  justify-content: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.drawer.drawer-open { opacity: 1; pointer-events: auto; }
+.drawer[hidden] { display: none; }
+
+.drawer-panel {
+  width: 360px;
+  max-width: 100vw;
+  height: 100%;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.3, 1);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.4);
+}
+.drawer-open .drawer-panel { transform: translateX(0); }
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.drawer-header h2 { margin: 0; font-size: 16px; }
+
+.drawer-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.drawer-loading,
+.drawer-empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 24px 12px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.history-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 60px 1fr 24px;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.history-card:hover { border-color: var(--accent); }
+.history-card:active { transform: scale(0.98); }
+
+.history-thumb {
+  width: 60px;
+  height: 78px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.history-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.thumb-placeholder {
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.history-meta { min-width: 0; }
+.history-name {
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.history-delete {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 4px;
+}
+.history-delete:hover { background: var(--border); color: var(--text); }
+
+@media (max-width: 480px) {
+  .drawer-panel { width: 100vw; }
+}
+
+/* Tooltip + Explain */
 .tooltip {
   position: absolute;
   z-index: 100;
   background: var(--tooltip-bg);
-  border: 1px solid var(--tooltip-border);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px 36px 12px 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  max-width: 360px;
+  max-width: 380px;
   font-size: 14px;
   line-height: 1.5;
+  max-height: 70vh;
+  overflow-y: auto;
 }
-
 .tooltip[hidden] { display: none; }
 
 .tooltip-source {
@@ -132,19 +299,16 @@ html, body {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
-
 .tooltip-arrow {
   color: var(--accent);
   font-size: 11px;
   margin: 4px 0;
 }
-
 .tooltip-target {
   color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
 }
-
 .tooltip-close {
   position: absolute;
   top: 6px;
@@ -159,9 +323,45 @@ html, body {
   line-height: 1;
   border-radius: 4px;
 }
+.tooltip-close:hover { background: var(--border); color: var(--text); }
 
-.tooltip-close:hover {
-  background: #374151;
+.explain-btn {
+  margin-top: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+}
+.explain-btn:hover { background: rgba(96, 165, 250, 0.28); }
+.explain-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.explain-btn[hidden] { display: none; }
+
+.explain-body {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.explain-body[hidden] { display: none; }
+.explain-block { margin-bottom: 10px; }
+.explain-block:last-child { margin-bottom: 0; }
+.explain-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.explain-body ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.explain-body li {
+  margin: 2px 0;
   color: var(--text);
 }
 
@@ -169,17 +369,14 @@ html, body {
   display: inline-block;
   width: 12px;
   height: 12px;
-  border: 2px solid #374151;
+  border: 2px solid var(--border);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   vertical-align: middle;
   margin-right: 6px;
 }
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .status {
   position: fixed;
@@ -187,7 +384,7 @@ html, body {
   left: 50%;
   transform: translateX(-50%);
   background: var(--panel);
-  border: 1px solid #374151;
+  border: 1px solid var(--border);
   padding: 8px 14px;
   border-radius: 8px;
   font-size: 13px;
@@ -195,10 +392,9 @@ html, body {
   z-index: 200;
   display: none;
   pointer-events: none;
+  max-width: 90vw;
 }
 
 @media (max-width: 640px) {
-  .tooltip {
-    max-width: none;
-  }
+  .tooltip { max-width: none; }
 }
