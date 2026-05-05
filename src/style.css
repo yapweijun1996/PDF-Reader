@@ -924,6 +924,56 @@ button { font-family: inherit; }
 .toast.toast-in { opacity: 1; transform: translateY(0); }
 .toast.toast-out { opacity: 0; transform: translateY(8px); }
 
+/* -------- Markdown rendered inside translation cards -------- */
+.has-markdown > p { margin: 0 0 8px; }
+.has-markdown > p:last-child { margin-bottom: 0; }
+.has-markdown ul,
+.has-markdown ol { margin: 6px 0 8px; padding-left: 20px; }
+.has-markdown li { margin: 2px 0; }
+.has-markdown strong { color: var(--text); }
+.has-markdown em { color: var(--text); }
+.has-markdown code {
+  background: var(--panel-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.has-markdown pre {
+  background: var(--panel-2);
+  padding: 8px 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 12px;
+}
+.has-markdown blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 6px 0;
+  padding: 4px 10px;
+  color: var(--muted);
+}
+.has-markdown table {
+  border-collapse: collapse;
+  margin: 6px 0;
+  font-size: 12px;
+  width: 100%;
+  display: block;
+  overflow-x: auto;
+}
+.has-markdown th,
+.has-markdown td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+.has-markdown th {
+  background: var(--panel-2);
+  font-weight: 600;
+  color: var(--accent);
+}
+.has-markdown tr:nth-child(even) td { background: rgba(255, 255, 255, 0.02); }
+
 /* -------- Auto-translate mode button -------- */
 .mode-btn-active {
   background: var(--accent-soft) !important;

@@ -13,7 +13,9 @@
     "vite-plugin-pwa": "^0.20.5"
   },
   "dependencies": {
+    "dompurify": "^3.4.2",
     "idb-keyval": "^6.2.2",
+    "marked": "^18.0.3",
     "pdfjs-dist": "^4.7.76"
   }
 }

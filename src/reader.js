@@ -6,6 +6,7 @@
 import { translate } from './translator.js';
 import { getTrans, putTrans } from './db.js';
 import { extractAllParagraphs } from './paragraphs.js';
+import { renderMarkdown, looksLikeMarkdown } from './markdown.js';
 import * as tts from './tts.js';
 
 const INTER_CALL_DELAY_MS = 500;
@@ -128,20 +129,30 @@ async function translateOne(p) {
   try {
     const cached = docHash ? await getTrans(docHash, p.segId, lang) : null;
     if (cached) {
-      card.target.textContent = cached;
+      writeReaderTarget(card.target, cached);
       return;
     }
   } catch {}
 
   try {
     const out = await translate(p.text, lang);
-    card.target.textContent = out || '(empty)';
+    writeReaderTarget(card.target, out || '(empty)');
     if (docHash && out) {
       try { await putTrans(docHash, p.segId, lang, out); } catch {}
     }
   } catch (e) {
     card.target.textContent = '⚠️ ' + (e.message || e);
     card.el.classList.add('reader-card-error');
+  }
+}
+
+function writeReaderTarget(el, text) {
+  if (looksLikeMarkdown(text)) {
+    el.innerHTML = renderMarkdown(text);
+    el.classList.add('has-markdown');
+  } else {
+    el.textContent = text;
+    el.classList.remove('has-markdown');
   }
 }
 

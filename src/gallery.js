@@ -77,26 +77,44 @@ export async function openGalleryPaper(entry, viewerEl, onStatus = () => {}) {
 async function fetchPdfBytes(url, onStatus) {
   // 1) Direct fetch (works for some arXiv mirrors / well-configured CDNs)
   try {
+    onStatus('Downloading paper…');
     const res = await fetch(url, { mode: 'cors' });
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('pdf') || ct.includes('octet') || ct === '') {
-        return await res.arrayBuffer();
+        const buf = await res.arrayBuffer();
+        if (buf.byteLength > 1024) {
+          console.log('[gallery] direct fetch ok:', url);
+          return buf;
+        }
       }
     }
-  } catch {}
+  } catch (e) {
+    console.log('[gallery] direct fetch failed (CORS expected):', e.message);
+  }
 
   // 2) CORS proxies in order
   for (let i = 0; i < CORS_PROXIES.length; i++) {
     const proxyFn = CORS_PROXIES[i];
+    const proxyUrl = proxyFn(url);
     try {
-      onStatus(`Retrying via proxy ${i + 1}/${CORS_PROXIES.length}…`);
-      const res = await fetch(proxyFn(url));
+      onStatus(`Trying proxy ${i + 1}/${CORS_PROXIES.length}…`);
+      const res = await fetch(proxyUrl);
       if (res.ok) {
         const buf = await res.arrayBuffer();
-        if (buf.byteLength > 1024) return buf;
+        if (buf.byteLength > 1024) {
+          console.log(`[gallery] proxy ${i + 1} ok`);
+          return buf;
+        } else {
+          console.log(`[gallery] proxy ${i + 1} returned ${buf.byteLength} bytes (too small)`);
+        }
+      } else {
+        console.log(`[gallery] proxy ${i + 1} status ${res.status}`);
       }
-    } catch {}
+    } catch (e) {
+      console.log(`[gallery] proxy ${i + 1} threw:`, e.message);
+    }
   }
+  console.log('[gallery] all fetch strategies failed for', url);
   return null;
 }

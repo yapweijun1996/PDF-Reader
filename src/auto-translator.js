@@ -7,6 +7,7 @@
 import { translate } from './translator.js';
 import { getTrans, putTrans } from './db.js';
 import { extractParagraphs } from './paragraphs.js';
+import { renderMarkdown, looksLikeMarkdown } from './markdown.js';
 
 const INTER_CALL_DELAY_MS = 500;
 
@@ -139,7 +140,7 @@ async function processJob(job) {
   try {
     const cached = docHash ? await getTrans(docHash, job.segId, lang) : null;
     if (cached) {
-      transTarget.textContent = cached;
+      writeTranslation(transTarget, cached);
       cardEl.classList.add('card-ready');
       return;
     }
@@ -148,7 +149,7 @@ async function processJob(job) {
   transTarget.innerHTML = '<span class="spinner"></span> Translating…';
   try {
     const out = await translate(job.text, lang);
-    transTarget.textContent = out;
+    writeTranslation(transTarget, out);
     cardEl.classList.add('card-ready');
     if (docHash && out) {
       try { await putTrans(docHash, job.segId, lang, out); } catch {}
@@ -156,6 +157,16 @@ async function processJob(job) {
   } catch (e) {
     transTarget.textContent = '⚠️ ' + (e.message || e);
     cardEl.classList.add('card-error');
+  }
+}
+
+function writeTranslation(el, text) {
+  if (looksLikeMarkdown(text)) {
+    el.innerHTML = renderMarkdown(text);
+    el.classList.add('has-markdown');
+  } else {
+    el.textContent = text;
+    el.classList.remove('has-markdown');
   }
 }
 
