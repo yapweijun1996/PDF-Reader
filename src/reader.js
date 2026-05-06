@@ -224,6 +224,45 @@ function bindToolbar() {
   if (dlBtn) dlBtn.onclick = downloadAllAudio;
 }
 
+/**
+ * Synthesize + persist one paragraph's audio without playing it.
+ * Used by speakSequence to warm the IDB cache one step ahead of playback,
+ * so paragraph N+1 plays the moment paragraph N ends. No-op when:
+ *   - User isn't on Gemini TTS provider (browser TTS is instant anyway)
+ *   - User has no API key set
+ *   - Audio is already cached
+ *   - Translation isn't ready or is an error
+ */
+const inflightPrefetch = new Set();
+async function prefetchSegAudio(p) {
+  if (!p || inflightPrefetch.has(p.segId)) return;
+  const ctx = getCtx?.();
+  if (!ctx) return;
+  const cfg = await getUserConfig();
+  if (cfg.ttsProvider !== 'gemini') return;
+  const userCfg = await getActiveModelConfig();
+  if (!userCfg.apiKey) return;
+  const card = cards.get(p.segId);
+  const text = card?.target?.textContent || '';
+  if (!text || /^Translating|^⚠️/.test(text)) return;
+  const voice = cfg.ttsVoice || 'Zephyr';
+  const langTag = tts.langTagFor(ctx.lang);
+  const idbKey = await audioCacheKey('gemini', voice, langTag, text);
+  const existing = await getAudioBlob(idbKey);
+  if (existing) return;
+
+  inflightPrefetch.add(p.segId);
+  try {
+    console.log('[reader] prefetch synth', p.segId);
+    const blob = await synthesizeGemini({ text, voice, apiKey: userCfg.apiKey });
+    await putAudioBlob(idbKey, blob);
+  } catch (e) {
+    console.warn('[reader] prefetch failed for', p.segId, e.message || e);
+  } finally {
+    inflightPrefetch.delete(p.segId);
+  }
+}
+
 async function cacheAllAudio() {
   if (!allParagraphs.length) return;
   const ctx = getCtx?.();
@@ -413,6 +452,17 @@ function speakSequence(segId) {
   }
   setSpeaking(segId);
   updateProgress(segId, null);
+
+  // Prefetch the next paragraph's audio in the background while the
+  // current one plays. By the time playback ends the next paragraph is
+  // (usually) already in IDB, eliminating the synth-induced gap between
+  // paragraphs.
+  const nextId = nextSegAfter(segId);
+  if (nextId) {
+    const nextP = allParagraphs.find(p => p.segId === nextId);
+    if (nextP) prefetchSegAudio(nextP).catch(() => {});
+  }
+
   tts.speak(text, lang, {
     rate: playRate,
     onProgress: (info) => updateProgress(segId, info),
