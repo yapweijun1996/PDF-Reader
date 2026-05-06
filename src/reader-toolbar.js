@@ -170,6 +170,7 @@ function mountButton(parent, spec, handlers) {
     e.stopPropagation();
     handlers[spec.id]?.();
   });
+  parent.appendChild(b);
   return b;
 }
 
