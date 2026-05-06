@@ -126,7 +126,16 @@
       <div class="tooltip-handle" id="tooltipHandle" aria-hidden="true"><span></span></div>
       <button class="tooltip-close" id="tooltipClose" aria-label="Close">×</button>
       <div class="tooltip-body">
-        <div class="tooltip-source" id="tooltipSource"></div>
+        <div class="tooltip-row">
+          <div class="tooltip-source" id="tooltipSource"></div>
+          <button class="tts-btn tts-btn-sm" id="tooltipSpeakSrc" type="button" title="Read original aloud">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M11 5l-6 4H3v6h2l6 4z" fill="currentColor" />
+              <path d="M15 9c1.5 1 1.5 5 0 6" />
+              <path d="M18 6c3 2 3 10 0 12" />
+            </svg>
+          </button>
+        </div>
         <div class="tooltip-arrow">→</div>
         <div class="tooltip-row">
           <div class="tooltip-target" id="tooltipTarget"></div>

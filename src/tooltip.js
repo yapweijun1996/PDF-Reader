@@ -9,6 +9,7 @@ const explainBtn = () => document.getElementById('tooltipExplain');
 const explainBody = () => document.getElementById('tooltipExplainBody');
 const handleEl = () => document.getElementById('tooltipHandle');
 const speakTgtBtn = () => document.getElementById('tooltipSpeakTgt');
+const speakSrcBtn = () => document.getElementById('tooltipSpeakSrc');
 
 let initialized = false;
 let onExplainClick = null;
@@ -28,6 +29,18 @@ export function initTooltip(onExplain, getTargetLang) {
     const langName = getTargetLangCb?.() || 'English';
     const tag = tts.langTagFor(langName);
     speakWith(speakTgtBtn(), text, tag);
+  });
+
+  // Speak the original (source) text. We detect the language via Unicode
+  // block heuristics (lang-detect.js) instead of asking the user — most
+  // PDFs are single-language and detection is fast/local.
+  speakSrcBtn()?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const text = currentSource;
+    if (!text) return;
+    const detected = detectLang(text);
+    const tag = detected?.bcp47 || 'en-US';
+    speakWith(speakSrcBtn(), text, tag);
   });
 
   closeBtn().addEventListener('click', hide);
