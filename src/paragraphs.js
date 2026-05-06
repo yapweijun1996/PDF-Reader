@@ -77,7 +77,7 @@ export function cleanText(raw) {
   t = t.replace(/^[\s*†‡§¶★]+/, '');
 
   // Collapse runs of whitespace (including non-breaking + line/paragraph seps)
-  t = t.replace(/[\s   ]+/g, ' ');
+  t = t.replace(/[\s\u00a0\u2028\u2029\u3000]+/g, ' ');
 
   // Smarten quotes like "He said , 'go'" → "He said, 'go'"
   t = t.replace(/\s+([,;.!?:])/g, '$1');
