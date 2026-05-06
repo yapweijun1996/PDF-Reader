@@ -14,7 +14,7 @@
 const STORAGE_KEY = 'pdfReader.pageScale';
 const LEGACY_KEY = 'pdfReader.bilingualScale';
 const MIN_SCALE = 0.5;
-const MAX_SCALE = 1.5;
+const MAX_SCALE = 2.5;
 
 let currentScale = loadScale();
 

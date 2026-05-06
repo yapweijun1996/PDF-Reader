@@ -16,7 +16,7 @@ import { applyBilingualScale, getCurrentScale } from './bilingual-resizer.js';
 const STORAGE_KEY = 'pdfReader.pageScale';
 const STEP = 0.1;
 const MIN = 0.5;
-const MAX = 1.5;
+const MAX = 2.5;
 
 let widgetEl = null;
 let labelEl = null;
