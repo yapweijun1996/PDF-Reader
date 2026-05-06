@@ -286,8 +286,31 @@ async function boot() {
 
   registerSW({
     immediate: true,
-    onNeedRefresh() { window.location.reload(); },
-    onOfflineReady() { console.log('[PWA] offline-ready'); }
+    onNeedRefresh() {
+      console.log('[PWA] new version available — reloading');
+      try { toast('Updating to latest version…', { duration: 1200 }); } catch {}
+      setTimeout(() => window.location.reload(), 800);
+    },
+    onOfflineReady() { console.log('[PWA] offline-ready'); },
+    onRegisteredSW(_swUrl, registration) {
+      if (!registration) return;
+      // Aggressive auto-update: poll for new sw.js while the tab is visible.
+      // skipWaiting + clientsClaim are configured in vite.config.js so the
+      // new SW activates immediately; onNeedRefresh above forces a reload.
+      const POLL_MS = 60_000;
+      setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          registration.update().catch(() => {});
+        }
+      }, POLL_MS);
+
+      // Also check immediately whenever the user returns to the tab.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          registration.update().catch(() => {});
+        }
+      });
+    }
   });
 }
 
