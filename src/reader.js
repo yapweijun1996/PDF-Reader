@@ -12,6 +12,7 @@ import { getActiveModelConfig } from './settings-modal.js';
 import { synthesizeGemini, wrapPcmInWav } from './tts-gemini.js';
 import * as tts from './tts.js';
 import { toast } from './toast.js';
+import { renderReaderToolbar } from './reader-toolbar.js';
 
 const FONT_MIN = 13;
 const FONT_MAX = 26;
@@ -33,6 +34,7 @@ let playing = false;
 let currentSpeakingSeg = null;
 let playRate = 1;
 let showOriginal = true;
+let toolbarCtl = null;  // returned by renderReaderToolbar — exposes setPlaying/setRate/...
 
 export function startReader({ container, toolbar, getContext }) {
   containerEl = container;
@@ -177,51 +179,37 @@ function writeReaderTarget(el, text) {
 // -------- TTS playback --------
 
 function bindToolbar() {
-  toolbarEl.querySelector('.reader-play-all').onclick = () => playing ? pause() : playFrom(currentSpeakingSeg || allParagraphs[0]?.segId);
-  toolbarEl.querySelector('.reader-stop').onclick = stopPlayback;
-  const rateInput = toolbarEl.querySelector('.reader-rate');
-  rateInput.value = String(playRate);
-  rateInput.oninput = () => {
-    playRate = parseFloat(rateInput.value);
-    toolbarEl.querySelector('.reader-rate-value').textContent = `${playRate.toFixed(2)}x`;
-    if (playing && currentSpeakingSeg) {
-      // Restart current paragraph with new rate
-      speakSequence(currentSpeakingSeg);
-    }
-  };
-  toolbarEl.querySelector('.reader-rate-value').textContent = `${playRate.toFixed(2)}x`;
-
-  const toggle = toolbarEl.querySelector('.reader-toggle-original');
-  toggle.checked = showOriginal;
-  toggle.onchange = () => {
-    showOriginal = toggle.checked;
-    document.body.classList.toggle('hide-source', !showOriginal);
-    setReaderPrefs({ showSource: showOriginal });
-  };
-
-  // Font size +/-
-  toolbarEl.querySelector('.reader-font-dec').onclick = () => bumpFont(-FONT_STEP);
-  toolbarEl.querySelector('.reader-font-inc').onclick = () => bumpFont(+FONT_STEP);
-
-  // Theme picker
-  const themeSel = toolbarEl.querySelector('.reader-theme');
-  themeSel.value = getReaderPrefs().theme;
-  themeSel.onchange = () => {
-    const theme = READER_THEMES.includes(themeSel.value) ? themeSel.value : 'dark';
-    containerEl.dataset.theme = theme;
-    setReaderPrefs({ theme });
-  };
-
-  // Export
-  toolbarEl.querySelector('.reader-export').onclick = exportTxt;
-
-  // Pre-cache all audio (synthesize all paragraphs into IDB)
-  const cacheBtn = toolbarEl.querySelector('.reader-cache-all');
-  if (cacheBtn) cacheBtn.onclick = cacheAllAudio;
-
-  // Download all cached audio as one .wav
-  const dlBtn = toolbarEl.querySelector('.reader-download-audio');
-  if (dlBtn) dlBtn.onclick = downloadAllAudio;
+  // All toolbar markup + wiring lives in reader-toolbar.js. We just hand
+  // over a handlers map and stash the returned controls for state sync.
+  toolbarCtl = renderReaderToolbar(toolbarEl, {
+    playAll: () => playing
+      ? pause()
+      : playFrom(currentSpeakingSeg || allParagraphs[0]?.segId),
+    stop: stopPlayback,
+    rate: (v) => {
+      playRate = v;
+      // Rate change mid-playback: restart current paragraph at new rate.
+      if (playing && currentSpeakingSeg) speakSequence(currentSpeakingSeg);
+    },
+    showSource: (on) => {
+      showOriginal = on;
+      document.body.classList.toggle('hide-source', !showOriginal);
+      setReaderPrefs({ showSource: showOriginal });
+    },
+    fontDec: () => bumpFont(-FONT_STEP),
+    fontInc: () => bumpFont(+FONT_STEP),
+    theme: (t) => {
+      const theme = READER_THEMES.includes(t) ? t : 'dark';
+      containerEl.dataset.theme = theme;
+      setReaderPrefs({ theme });
+    },
+    cacheAll: cacheAllAudio,
+    downloadWav: downloadAllAudio,
+    exportTxt
+  });
+  toolbarCtl.setRate(playRate);
+  toolbarCtl.setShowSource(showOriginal);
+  toolbarCtl.setTheme(getReaderPrefs().theme);
 }
 
 /**
@@ -536,10 +524,7 @@ function stopPlayback() {
 }
 
 function setPlayingButton(on) {
-  const btn = toolbarEl?.querySelector('.reader-play-all');
-  if (!btn) return;
-  btn.classList.toggle('is-playing', on);
-  btn.querySelector('.label').textContent = on ? 'Pause' : 'Read All';
+  toolbarCtl?.setPlaying(on);
 }
 
 function setSpeaking(segId) {
