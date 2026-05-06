@@ -4,11 +4,14 @@
 // show original toggle).
 
 import { translate } from './translator.js';
-import { getTrans, putTrans } from './db.js';
+import { getTrans, putTrans, getAudioBlob, putAudioBlob, audioCacheKey, getUserConfig } from './db.js';
 import { extractAllParagraphs } from './paragraphs.js';
 import { renderMarkdown, looksLikeMarkdown } from './markdown.js';
 import { getReaderPrefs, setReaderPrefs, READER_THEMES } from './settings.js';
+import { getActiveModelConfig } from './settings-modal.js';
+import { synthesizeGemini, wrapPcmInWav } from './tts-gemini.js';
 import * as tts from './tts.js';
+import { toast } from './toast.js';
 
 const FONT_MIN = 13;
 const FONT_MAX = 26;
@@ -211,6 +214,134 @@ function bindToolbar() {
 
   // Export
   toolbarEl.querySelector('.reader-export').onclick = exportTxt;
+
+  // Pre-cache all audio (synthesize all paragraphs into IDB)
+  const cacheBtn = toolbarEl.querySelector('.reader-cache-all');
+  if (cacheBtn) cacheBtn.onclick = cacheAllAudio;
+
+  // Download all cached audio as one .wav
+  const dlBtn = toolbarEl.querySelector('.reader-download-audio');
+  if (dlBtn) dlBtn.onclick = downloadAllAudio;
+}
+
+async function cacheAllAudio() {
+  if (!allParagraphs.length) return;
+  const ctx = getCtx?.();
+  if (!ctx) return;
+  const cfg = await getUserConfig();
+  if (cfg.ttsProvider !== 'gemini') {
+    toast('Cache requires Gemini TTS — switch in Settings ⚙', { duration: 4000 });
+    return;
+  }
+  const userCfg = await getActiveModelConfig();
+  if (!userCfg.apiKey) {
+    toast('Cache requires your Gemini API key — open Settings ⚙', { duration: 4000 });
+    return;
+  }
+  const voice = cfg.ttsVoice || 'Zephyr';
+  const langTag = tts.langTagFor(ctx.lang);
+  const total = allParagraphs.length;
+  let done = 0;
+  let synthesized = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  showCacheProgress(0, total, 'Starting cache…');
+
+  for (const p of allParagraphs) {
+    done++;
+    const card = cards.get(p.segId);
+    const text = card?.target?.textContent || '';
+    if (!text || /^Translating|^⚠️/.test(text)) { skipped++; continue; }
+
+    const idbKey = await audioCacheKey('gemini', voice, langTag, text);
+    const existing = await getAudioBlob(idbKey);
+    if (existing) {
+      skipped++;
+      showCacheProgress(done, total, `cached ${done}/${total} (hit)`);
+      continue;
+    }
+    showCacheProgress(done, total, `synthesizing ${done}/${total}…`);
+    try {
+      const blob = await synthesizeGemini({ text, voice, apiKey: userCfg.apiKey });
+      await putAudioBlob(idbKey, blob);
+      synthesized++;
+    } catch (e) {
+      console.warn('[reader] cache failed for', p.segId, e);
+      failed++;
+    }
+  }
+
+  hideCacheProgress();
+  toast(`Cached: ${synthesized} new + ${skipped} hits${failed ? ` · ${failed} failed` : ''}`, { duration: 5000 });
+}
+
+async function downloadAllAudio() {
+  if (!allParagraphs.length) return;
+  const ctx = getCtx?.();
+  if (!ctx) return;
+  const cfg = await getUserConfig();
+  const voice = cfg.ttsVoice || 'Zephyr';
+  const langTag = tts.langTagFor(ctx.lang);
+
+  showCacheProgress(0, allParagraphs.length, 'Collecting audio…');
+  const pcmParts = [];
+  let sampleRate = 24000;
+  let missing = 0;
+  for (let i = 0; i < allParagraphs.length; i++) {
+    const p = allParagraphs[i];
+    const card = cards.get(p.segId);
+    const text = card?.target?.textContent || '';
+    if (!text) continue;
+    const idbKey = await audioCacheKey('gemini', voice, langTag, text);
+    const blob = await getAudioBlob(idbKey);
+    if (!blob) { missing++; continue; }
+    showCacheProgress(i + 1, allParagraphs.length, `merging ${i + 1}/${allParagraphs.length}`);
+    const buf = await blob.arrayBuffer();
+    const view = new DataView(buf);
+    if (buf.byteLength < 44) continue;
+    const riff = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3));
+    if (riff !== 'RIFF') continue;
+    sampleRate = view.getUint32(24, true);
+    pcmParts.push(new Uint8Array(buf, 44));
+  }
+  hideCacheProgress();
+
+  if (!pcmParts.length) {
+    toast('No cached audio yet. Click "Cache all" first.', { duration: 4000 });
+    return;
+  }
+
+  const total = pcmParts.reduce((s, a) => s + a.length, 0);
+  const merged = new Uint8Array(total);
+  let off = 0;
+  for (const a of pcmParts) { merged.set(a, off); off += a.length; }
+  const wavBytes = wrapPcmInWav(merged, sampleRate, 1, 16);
+  const blob = new Blob([wavBytes], { type: 'audio/wav' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pdf-reader-audio-${Date.now()}.wav`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+
+  toast(`Downloaded ${pcmParts.length} clips${missing ? ` · ${missing} not cached (skipped)` : ''}`, { duration: 4000 });
+}
+
+function showCacheProgress(done, total, label) {
+  const bar = document.getElementById('readerProgress');
+  if (!bar) return;
+  bar.hidden = false;
+  const pct = Math.min(100, Math.round((done / total) * 100));
+  bar.querySelector('.reader-progress-bar').style.width = `${pct}%`;
+  bar.querySelector('.reader-progress-label').textContent = label;
+}
+
+function hideCacheProgress() {
+  const bar = document.getElementById('readerProgress');
+  if (bar) bar.hidden = true;
 }
 
 function bumpFont(delta) {

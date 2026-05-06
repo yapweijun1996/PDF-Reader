@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <meta name="theme-color" content="#1f2937" />
     <title>PDF Reader — Highlight to Translate</title>
-    <link rel="icon" type="image/png" href="icons/icon-192.png" />
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
     <link rel="stylesheet" href="/src/style.css" />
     <script src="gemma.js"></script>
@@ -108,13 +109,28 @@
             <option value="sepia">📜 Sepia</option>
             <option value="black">⚫ Black</option>
           </select>
+          <button class="reader-cache-all" type="button" title="Pre-synthesize all paragraphs (Gemini TTS) and cache for offline">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12a9 9 0 1 1-3-6.7" />
+              <polyline points="21 4 21 9 16 9" />
+            </svg>
+            <span>Cache</span>
+          </button>
+          <button class="reader-download-audio" type="button" title="Download all cached audio as one .wav">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+            <span>WAV</span>
+          </button>
           <button class="reader-export" type="button" title="Export translation as .txt">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M12 4v12" />
               <polyline points="7 11 12 16 17 11" />
               <path d="M5 20h14" />
             </svg>
-            <span>Export</span>
+            <span>TXT</span>
           </button>
         </div>
       </div>

@@ -10,9 +10,9 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['attention.pdf', 'gemma_code.jsonl', 'gallery.json', 'icons/*.png'],
+      includeAssets: ['attention.pdf', 'gemma_code.jsonl', 'gallery.json', 'icons/*.png', 'icons/*.svg'],
       workbox: {
-        globPatterns: ['**/*.{js,css,html,pdf,jsonl,json,png,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,pdf,jsonl,json,png,svg,webmanifest}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
@@ -28,6 +28,7 @@ export default defineConfig({
         start_url: '.',
         scope: '.',
         icons: [
+          { src: 'icons/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           { src: 'icons/maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },

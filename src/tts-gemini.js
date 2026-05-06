@@ -50,12 +50,13 @@ export const GEMINI_VOICES = [
   { name: 'Sulafat',        tone: 'Warm' }
 ];
 
-// Gemini TTS streaming generates ≤ ~30 seconds of audio per request.
-// Empirically that's around 500 characters. To avoid truncation on long
-// paragraphs, we split at sentence boundaries (with hard-fallback by
-// length) and concatenate the raw PCM frames before adding the WAV header.
-const MAX_CHARS_PER_CHUNK = 500;
-const MAX_CHUNKS_PER_REQUEST = 8; // soft cap so we don't hammer quota
+// Gemini TTS audio output cap ≈ 30 seconds per request. Empirical testing
+// (user reported "150 words → only 100 words audible") shows 500-char input
+// sometimes overflows that 30s window for fast-pace voices and dense CJK
+// text. Drop to 300 chars per chunk for safety; raise the chunk count cap
+// to compensate so total reachable input stays similar (~5000 chars).
+const MAX_CHARS_PER_CHUNK = 300;
+const MAX_CHUNKS_PER_REQUEST = 16;
 
 /**
  * Synthesize text to a playable Blob URL (audio/wav).
@@ -203,7 +204,7 @@ function base64ConcatToBytes(base64Parts) {
  * <audio>. Inputs are little-endian; sampleRate / channels / bitsPerSample
  * must match the PCM data.
  */
-function wrapPcmInWav(pcm, sampleRate, channels, bitsPerSample) {
+export function wrapPcmInWav(pcm, sampleRate, channels, bitsPerSample) {
   const byteRate = sampleRate * channels * bitsPerSample / 8;
   const blockAlign = channels * bitsPerSample / 8;
   const dataLen = pcm.length;
