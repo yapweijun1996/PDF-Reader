@@ -20,6 +20,7 @@ import { initOfflineBanner } from './offline.js';
 import { initInstallPrompt } from './install.js';
 import { initBottomSheet } from './bottom-sheet.js';
 import { initSettingsModal } from './settings-modal.js';
+import { initBilingualResizer, applyBilingualScale } from './bilingual-resizer.js';
 import { registerSW } from 'virtual:pwa-register';
 
 const viewer = () => document.getElementById('viewer');
@@ -136,6 +137,7 @@ async function loadDemoPdf() {
     currentDocHash = await getDocHash(buf);
     const { hasTextLayer } = await renderPdf(new Uint8Array(buf), viewer());
     currentHasTextLayer = hasTextLayer;
+    applyBilingualScale();
     if (!hasTextLayer) {
       notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
     }
@@ -152,6 +154,7 @@ async function handleFile(file) {
     const { docHash, hasTextLayer } = await openPdfFile(file, viewer(), setLoading);
     currentDocHash = docHash;
     currentHasTextLayer = hasTextLayer;
+    applyBilingualScale();
     if (!hasTextLayer) {
       notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
     } else {
@@ -193,6 +196,7 @@ async function handleHistoryOpen(record) {
     const { docHash, hasTextLayer } = await openPdfFromRecord(record, viewer(), setLoading);
     currentDocHash = docHash;
     currentHasTextLayer = hasTextLayer;
+    applyBilingualScale();
     if (!hasTextLayer) {
       notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
     }
@@ -242,6 +246,7 @@ async function boot() {
     handle: document.getElementById('panelHandle')
   });
   initSettingsModal({ openButton: document.getElementById('settingsBtn') });
+  initBilingualResizer();
 
   initHistoryDrawer({
     drawerEl: document.getElementById('historyDrawer'),

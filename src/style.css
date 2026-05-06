@@ -1241,6 +1241,8 @@ button { font-family: inherit; }
   display: contents;
 }
 .translation-column { display: none; }
+/* Resizer is bilingual-only; hide everywhere else */
+.bilingual-resizer { display: none; }
 
 @media (min-width: 1024px) {
   body.mode-bilingual .bilingual-row {
@@ -1275,6 +1277,48 @@ button { font-family: inherit; }
   }
   body.mode-bilingual .translation-panel.panel-open {
     transform: translateX(100%); /* hide side panel; columns are inline */
+  }
+  /* ── Column resizer: a 6-px draggable bar between PDF and translation
+     column. Hover/active states give clear feedback. The translation
+     column has flex:1 so it auto-absorbs remaining width as user drags. */
+  body.mode-bilingual .bilingual-resizer {
+    display: block;
+    flex: 0 0 6px;
+    align-self: stretch;
+    background: var(--border);
+    border-radius: 3px;
+    cursor: col-resize;
+    position: relative;
+    transition: background 0.15s ease;
+    touch-action: none;
+  }
+  body.mode-bilingual .bilingual-resizer::before {
+    content: '';
+    position: absolute;
+    inset: 0 -8px;  /* enlarge hit area without changing visual size */
+  }
+  body.mode-bilingual .bilingual-resizer::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 32px;
+    background: var(--text);
+    opacity: 0.35;
+    border-radius: 1px;
+    box-shadow: -3px 0 0 var(--text), 3px 0 0 var(--text);
+  }
+  body.mode-bilingual .bilingual-resizer:hover,
+  body.mode-bilingual .bilingual-resizer:focus-visible {
+    background: var(--accent);
+    outline: none;
+  }
+  body.bilingual-resizing,
+  body.bilingual-resizing * {
+    user-select: none !important;
+    cursor: col-resize !important;
   }
 }
 

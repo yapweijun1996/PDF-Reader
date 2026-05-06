@@ -65,12 +65,25 @@ async function renderPage(page, container) {
 
   const wrapper = document.createElement('div');
   wrapper.className = 'pdf-page';
-  wrapper.style.width = `${viewport.width * cssScale}px`;
-  wrapper.style.height = `${viewport.height * cssScale}px`;
+  const naturalW = viewport.width * cssScale;
+  const naturalH = viewport.height * cssScale;
+  // Stash the natural CSS dimensions so the bilingual resizer can scale
+  // them proportionally without re-rendering pdf.js.
+  wrapper.dataset.naturalWidth = String(naturalW);
+  wrapper.dataset.naturalHeight = String(naturalH);
+  wrapper.style.width = `${naturalW}px`;
+  wrapper.style.height = `${naturalH}px`;
+
+  const resizer = document.createElement('div');
+  resizer.className = 'bilingual-resizer';
+  resizer.setAttribute('role', 'separator');
+  resizer.setAttribute('aria-label', 'Resize PDF / translation columns');
+  resizer.tabIndex = 0;
 
   const translationColumn = document.createElement('div');
   translationColumn.className = 'translation-column';
-  translationColumn.style.height = `${viewport.height * cssScale}px`;
+  translationColumn.style.height = `${naturalH}px`;
+  translationColumn.dataset.naturalHeight = String(naturalH);
 
   const canvas = document.createElement('canvas');
   canvas.width = viewport.width;
@@ -81,13 +94,16 @@ async function renderPage(page, container) {
 
   const textLayerDiv = document.createElement('div');
   textLayerDiv.className = 'textLayer';
-  textLayerDiv.style.setProperty('--scale-factor', String(viewport.scale * cssScale));
-  textLayerDiv.style.width = `${viewport.width * cssScale}px`;
-  textLayerDiv.style.height = `${viewport.height * cssScale}px`;
+  const naturalScaleFactor = viewport.scale * cssScale;
+  textLayerDiv.dataset.naturalScaleFactor = String(naturalScaleFactor);
+  textLayerDiv.style.setProperty('--scale-factor', String(naturalScaleFactor));
+  textLayerDiv.style.width = `${naturalW}px`;
+  textLayerDiv.style.height = `${naturalH}px`;
 
   wrapper.appendChild(canvas);
   wrapper.appendChild(textLayerDiv);
   row.appendChild(wrapper);
+  row.appendChild(resizer);
   row.appendChild(translationColumn);
   container.appendChild(row);
 
