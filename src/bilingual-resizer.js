@@ -9,15 +9,21 @@
 // localStorage and applies to every page (so the layout stays uniform
 // across the document).
 
-const STORAGE_KEY = 'pdfReader.bilingualScale';
+// Unified storage key — shared with zoom-controls.js so the selection-mode
+// zoom buttons and the bilingual-mode drag resizer write/read the same value.
+const STORAGE_KEY = 'pdfReader.pageScale';
+const LEGACY_KEY = 'pdfReader.bilingualScale';
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 1.5;
 
 let currentScale = loadScale();
 
+export function getCurrentScale() { return currentScale; }
+
 function loadScale() {
   try {
-    const v = parseFloat(localStorage.getItem(STORAGE_KEY) || '');
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_KEY) || '';
+    const v = parseFloat(raw);
     if (Number.isFinite(v) && v >= MIN_SCALE && v <= MAX_SCALE) return v;
   } catch {}
   return 1;

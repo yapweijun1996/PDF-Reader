@@ -21,6 +21,7 @@ import { initInstallPrompt } from './install.js';
 import { initBottomSheet } from './bottom-sheet.js';
 import { initSettingsModal } from './settings-modal.js';
 import { initBilingualResizer, applyBilingualScale } from './bilingual-resizer.js';
+import { initZoomControls, updateZoomLabel } from './zoom-controls.js';
 import { registerSW } from 'virtual:pwa-register';
 
 const viewer = () => document.getElementById('viewer');
@@ -85,6 +86,9 @@ function applyMode(mode) {
   document.body.classList.remove('mode-selection', 'mode-side', 'mode-bilingual', 'mode-overlay', 'mode-reader', 'auto-mode');
   document.body.classList.add(`mode-${mode}`);
   if (isAutoMode(mode)) document.body.classList.add('auto-mode');
+  // Sync the zoom widget label in case bilingual drag changed scale
+  // before the user switched back to selection mode.
+  updateZoomLabel();
 
   // Auto-translate (side / bilingual)
   if (isAutoMode(mode)) {
@@ -247,6 +251,8 @@ async function boot() {
   });
   initSettingsModal({ openButton: document.getElementById('settingsBtn') });
   initBilingualResizer();
+  initZoomControls();
+  detectPwaStandalone();
 
   initHistoryDrawer({
     drawerEl: document.getElementById('historyDrawer'),
@@ -317,6 +323,30 @@ async function boot() {
       });
     }
   });
+}
+
+/**
+ * When the app runs as an installed PWA in standalone display mode, lock
+ * the viewport scale (no pinch zoom, no double-tap zoom). Tag the body
+ * so CSS can hide our custom zoom widget too. In-browser tabs keep the
+ * default user-scalable behavior so users can still pinch the page.
+ */
+function detectPwaStandalone() {
+  const mq = window.matchMedia('(display-mode: standalone)');
+  const apply = () => {
+    const standalone = mq.matches || window.navigator.standalone === true;
+    document.body.classList.toggle('pwa-standalone', standalone);
+    if (standalone) {
+      const meta = document.querySelector('meta[name="viewport"]');
+      if (meta) {
+        meta.setAttribute('content',
+          'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+      }
+    }
+  };
+  apply();
+  // Some browsers fire change when user installs/uninstalls. Re-apply.
+  mq.addEventListener?.('change', apply);
 }
 
 function captureContext(selectedText) {
