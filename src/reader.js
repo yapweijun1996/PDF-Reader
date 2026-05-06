@@ -277,26 +277,61 @@ function speakSequence(segId) {
   if (!card) { stopPlayback(); return; }
   const text = card.target.textContent || '';
   if (!text || /^Translating|^⚠️/.test(text)) {
-    // Skip until translation is ready or paragraph fails — try again in 600ms
     setTimeout(() => { if (playing) speakSequence(segId); }, 600);
     return;
   }
   setSpeaking(segId);
+  updateProgress(segId, null);
   tts.speak(text, lang, {
     rate: playRate,
+    onProgress: (info) => updateProgress(segId, info),
     onend: () => {
       if (!playing) return;
       const next = nextSegAfter(segId);
       if (next) speakSequence(next);
-      else stopPlayback();
+      else { stopPlayback(); hideProgress(); }
     },
     onerror: () => {
       if (!playing) return;
       const next = nextSegAfter(segId);
       if (next) speakSequence(next);
-      else stopPlayback();
+      else { stopPlayback(); hideProgress(); }
     }
   });
+}
+
+function updateProgress(segId, chunkInfo) {
+  const bar = document.getElementById('readerProgress');
+  if (!bar) return;
+  const idx = allParagraphs.findIndex(p => p.segId === segId);
+  if (idx < 0 || allParagraphs.length === 0) {
+    bar.hidden = true;
+    return;
+  }
+  bar.hidden = false;
+  // Outer fraction = paragraphs done so far / total
+  // Inner fraction = chunk synth progress within current paragraph
+  const outer = idx / allParagraphs.length;
+  const inner = chunkInfo && chunkInfo.totalChunks
+    ? (chunkInfo.chunkIdx / chunkInfo.totalChunks) / allParagraphs.length
+    : 0;
+  const pct = Math.min(100, Math.round((outer + inner) * 100));
+  bar.querySelector('.reader-progress-bar').style.width = `${pct}%`;
+  const label = bar.querySelector('.reader-progress-label');
+  let text = `Reading ${idx + 1} / ${allParagraphs.length}`;
+  if (chunkInfo && chunkInfo.totalChunks > 1) {
+    if (chunkInfo.phase === 'synth') {
+      text += ` · synthesizing chunk ${chunkInfo.chunkIdx + 1}/${chunkInfo.totalChunks}`;
+    } else if (chunkInfo.phase === 'chunk-done') {
+      text += ` · chunk ${chunkInfo.chunkIdx}/${chunkInfo.totalChunks} ready`;
+    }
+  }
+  label.textContent = text;
+}
+
+function hideProgress() {
+  const bar = document.getElementById('readerProgress');
+  if (bar) bar.hidden = true;
 }
 
 function nextSegAfter(segId) {
@@ -316,6 +351,7 @@ function stopPlayback() {
   setPlayingButton(false);
   tts.cancel();
   setSpeaking(null);
+  hideProgress();
 }
 
 function setPlayingButton(on) {

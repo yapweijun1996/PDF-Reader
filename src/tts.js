@@ -139,7 +139,7 @@ async function speakGemini(text, opts, targetLang) {
       // Tier 3: synthesize via Gemini
       opts.onstart?.();
       console.log('[tts] Gemini synthesizing…', { voice, len: text.length });
-      blob = await synthesizeGemini({ text, voice, apiKey });
+      blob = await synthesizeGemini({ text, voice, apiKey, onProgress: opts.onProgress });
       try { await putAudioBlob(idbKey, blob); } catch (e) {
         console.warn('[tts] IDB save failed (continuing):', e);
       }

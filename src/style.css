@@ -1682,6 +1682,43 @@ body.mode-reader .viewer { display: none; }
   cursor: pointer;
 }
 
+.reader-progress {
+  padding: 8px 16px;
+  background: var(--r-toolbar-bg);
+  border-bottom: 1px solid var(--r-card-border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.reader-progress[hidden] { display: none; }
+.reader-progress-bar {
+  position: relative;
+  height: 6px;
+  width: 0%;
+  background: var(--r-accent);
+  border-radius: 3px;
+  transition: width 0.25s ease;
+  box-shadow: 0 0 8px var(--r-accent);
+}
+.reader-progress::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 8px;
+  height: 6px;
+  background: var(--r-card-border);
+  border-radius: 3px;
+  z-index: 0;
+}
+.reader-progress-bar { z-index: 1; }
+.reader-progress-label {
+  font-size: 11px;
+  color: var(--r-muted);
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
 .reader-list {
   flex: 1;
   overflow-y: auto;

@@ -62,19 +62,22 @@ const MAX_CHUNKS_PER_REQUEST = 8; // soft cap so we don't hammer quota
  * Long text is split into sentence chunks; their PCM is concatenated
  * and wrapped once at the end. Throws on missing apiKey or API failure.
  */
-export async function synthesizeGemini({ text, voice = 'Zephyr', apiKey, temperature = 1, signal }) {
+export async function synthesizeGemini({ text, voice = 'Zephyr', apiKey, temperature = 1, signal, onProgress }) {
   if (!apiKey) throw new Error('Gemini TTS requires an API key (Settings → AI Provider).');
   if (!text || !text.trim()) throw new Error('Empty text');
 
   const chunks = splitForTts(text, MAX_CHARS_PER_CHUNK).slice(0, MAX_CHUNKS_PER_REQUEST);
   console.log(`[tts-gemini] ${chunks.length} chunk(s) for ${text.length} chars`);
+  onProgress?.({ chunkIdx: 0, totalChunks: chunks.length, phase: 'start' });
 
   const pcmParts = [];
   let detectedSampleRate = SAMPLE_RATE;
-  for (const chunk of chunks) {
-    const { pcm, sampleRate } = await synthesizeChunkPcm({ text: chunk, voice, apiKey, temperature, signal });
+  for (let i = 0; i < chunks.length; i++) {
+    onProgress?.({ chunkIdx: i, totalChunks: chunks.length, phase: 'synth' });
+    const { pcm, sampleRate } = await synthesizeChunkPcm({ text: chunks[i], voice, apiKey, temperature, signal });
     pcmParts.push(pcm);
     if (sampleRate) detectedSampleRate = sampleRate;
+    onProgress?.({ chunkIdx: i + 1, totalChunks: chunks.length, phase: 'chunk-done' });
   }
 
   const merged = concatBytes(pcmParts);
