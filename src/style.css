@@ -269,12 +269,18 @@ button { font-family: inherit; }
 .viewer {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  /* `safe center` keeps pages centered at scale=1 but falls back to start
+     when zoomed beyond viewport, so the left edge stays reachable via
+     horizontal scroll. */
+  align-items: safe center;
   gap: 16px;
   padding: 16px 8px calc(64px + var(--safe-bottom));
   width: 100%;
   max-width: 100vw;
   min-height: calc(100vh - var(--topbar-h));
+  /* Allow zoomed pages to pan horizontally without breaking the
+     body-level overflow-x:clip (which is needed for position:sticky). */
+  overflow-x: auto;
 }
 
 .pdf-page {
@@ -282,7 +288,6 @@ button { font-family: inherit; }
   background: #fff;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   margin: 0 auto;
-  max-width: calc(100vw - 16px);
   overflow: hidden; /* clip any translation overlay that exceeds page bbox */
 }
 .pdf-page canvas { display: block; max-width: 100%; height: auto; }
