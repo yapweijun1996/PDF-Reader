@@ -298,9 +298,25 @@ async function boot() {
   registerSW({
     immediate: true,
     onNeedRefresh() {
-      console.log('[PWA] new version available — reloading');
-      try { toast('Updating to latest version…', { duration: 1200 }); } catch {}
-      setTimeout(() => window.location.reload(), 800);
+      console.log('[PWA] new version available — prompting user');
+      try {
+        toast('A new version is available.', {
+          sticky: true,
+          id: 'pwa-update',
+          actions: [
+            { label: 'Later' },
+            {
+              label: 'Refresh now',
+              primary: true,
+              onClick: () => window.location.reload(),
+            },
+          ],
+        });
+      } catch {
+        // Fallback if toast subsystem fails — still reload, but give a longer
+        // grace period than the previous 800ms.
+        setTimeout(() => window.location.reload(), 3000);
+      }
     },
     onOfflineReady() { console.log('[PWA] offline-ready'); },
     onRegisteredSW(_swUrl, registration) {

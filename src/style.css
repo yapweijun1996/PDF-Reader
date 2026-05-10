@@ -1176,6 +1176,34 @@ button { font-family: inherit; }
 .toast.toast-in { opacity: 1; transform: translateY(0); }
 .toast.toast-out { opacity: 0; transform: translateY(8px); }
 
+.toast-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+.toast-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.toast-btn:hover { background: var(--panel-2); }
+.toast-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.toast-btn-primary:hover {
+  filter: brightness(1.1);
+  background: var(--accent);
+}
+
 /* -------- Markdown rendered inside translation cards -------- */
 .has-markdown > p { margin: 0 0 8px; }
 .has-markdown > p:last-child { margin-bottom: 0; }
