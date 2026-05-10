@@ -5,8 +5,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 const RENDER_SCALE = (() => {
   const dpr = window.devicePixelRatio || 1;
-  const baseScale = window.innerWidth < 768 ? 1.2 : 1.4;
-  return baseScale * Math.min(dpr, 2);
+  return 1.5 * Math.min(dpr, 3);
 })();
 
 const BILINGUAL_COLUMN_WIDTH = 320;
