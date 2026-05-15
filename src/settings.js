@@ -40,7 +40,6 @@ export const MODES = {
   SELECTION: 'selection',
   SIDE: 'side',
   BILINGUAL: 'bilingual',
-  OVERLAY: 'overlay',
   READER: 'reader'
 };
 
@@ -48,12 +47,11 @@ export const MODE_LABELS = {
   selection: 'Selection',
   side: 'Side panel',
   bilingual: 'Bilingual',
-  overlay: 'Overlay',
   reader: 'Reader'
 };
 
 export function isAutoMode(mode) {
-  return mode === MODES.SIDE || mode === MODES.BILINGUAL || mode === MODES.OVERLAY;
+  return mode === MODES.SIDE || mode === MODES.BILINGUAL;
 }
 
 export function isReaderMode(mode) {
@@ -81,7 +79,9 @@ export function getTranslateMode() {
   const raw = localStorage.getItem(MODE_KEY) || MODES.SELECTION;
   // Migrate legacy 'auto' value (PR #3) -> 'side'
   if (raw === 'auto') return MODES.SIDE;
-  if (![MODES.SELECTION, MODES.SIDE, MODES.BILINGUAL, MODES.OVERLAY, MODES.READER].includes(raw)) return MODES.SELECTION;
+  // Legacy 'overlay' (removed 2026-05-15 — user feedback: not useful) -> 'side'
+  if (raw === 'overlay') return MODES.SIDE;
+  if (![MODES.SELECTION, MODES.SIDE, MODES.BILINGUAL, MODES.READER].includes(raw)) return MODES.SELECTION;
   return raw;
 }
 
