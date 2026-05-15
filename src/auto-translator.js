@@ -8,6 +8,7 @@ import { translate } from './translator.js';
 import { getTrans, putTrans } from './db.js';
 import { extractParagraphs } from './paragraphs.js';
 import { renderMarkdown, looksLikeMarkdown } from './markdown.js';
+import { friendlyMessage } from './llm-error.js';
 
 const INTER_CALL_DELAY_MS = 500;
 
@@ -153,7 +154,8 @@ async function processJob(job) {
       try { await putTrans(docHash, job.segId, lang, out); } catch {}
     }
   } catch (e) {
-    transTarget.textContent = '⚠️ ' + (e.message || e);
+    console.error(e);
+    transTarget.textContent = '⚠️ ' + friendlyMessage(e);
     cardEl.classList.add('card-error');
   }
 }

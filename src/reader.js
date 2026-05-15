@@ -13,6 +13,7 @@ import { synthesizeGemini, wrapPcmInWav } from './tts-gemini.js';
 import * as tts from './tts.js';
 import { toast } from './toast.js';
 import { renderReaderToolbar } from './reader-toolbar.js';
+import { friendlyMessage } from './llm-error.js';
 
 const FONT_MIN = 13;
 const FONT_MAX = 26;
@@ -161,7 +162,7 @@ async function translateOne(p) {
       try { await putTrans(docHash, p.segId, lang, out); } catch {}
     }
   } catch (e) {
-    card.target.textContent = '⚠️ ' + (e.message || e);
+    card.target.textContent = '⚠️ ' + friendlyMessage(e);
     card.el.classList.add('reader-card-error');
   }
 }

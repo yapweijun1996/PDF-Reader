@@ -1,5 +1,6 @@
 import * as tts from './tts.js';
 import { detectLang } from './lang-detect.js';
+import { friendlyMessage } from './llm-error.js';
 
 const el = () => document.getElementById('tooltip');
 const sourceEl = () => document.getElementById('tooltipSource');
@@ -54,7 +55,8 @@ export function initTooltip(onExplain, getTargetLang) {
       const payload = await onExplainClick(currentSource);
       renderExplain(payload);
     } catch (e) {
-      explainBody().textContent = `⚠️ ${e.message || e}`;
+      console.error(e);
+      explainBody().textContent = `⚠️ ${friendlyMessage(e)}`;
     } finally {
       explainBtn().disabled = false;
     }

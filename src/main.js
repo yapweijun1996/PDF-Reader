@@ -22,6 +22,7 @@ import { initBottomSheet } from './bottom-sheet.js';
 import { initSettingsModal } from './settings-modal.js';
 import { initBilingualResizer, applyBilingualScale } from './bilingual-resizer.js';
 import { initZoomControls, updateZoomLabel } from './zoom-controls.js';
+import { friendlyMessage } from './llm-error.js';
 import { registerSW } from 'virtual:pwa-register';
 
 const viewer = () => document.getElementById('viewer');
@@ -270,7 +271,7 @@ async function boot() {
       showResult(out);
     } catch (e) {
       console.error(e);
-      showError(e.message || String(e));
+      showError(friendlyMessage(e));
     }
   });
 
