@@ -74,20 +74,59 @@ export async function putExplain(docHash, phrase, lang, payload) {
 }
 
 const USER_CONFIG_KEY = 'config::user';
+const CURRENT_SCHEMA_VERSION = 2;
 
 export async function getUserConfig() {
-  return (await get(USER_CONFIG_KEY)) || {};
+  const raw = (await get(USER_CONFIG_KEY)) || {};
+  if (raw.schemaVersion === CURRENT_SCHEMA_VERSION) return raw;
+  const migrated = migrateUserConfig(raw);
+  // Persist only when there was real legacy data — fresh users skip the
+  // write so we don't create an empty IDB entry on every cold start.
+  if (Object.keys(raw).length > 0) {
+    await set(USER_CONFIG_KEY, migrated);
+  }
+  return migrated;
 }
 
 export async function setUserConfig(patch) {
   const current = await getUserConfig();
-  const merged = { ...current, ...patch };
+  const merged = { ...current, ...patch, schemaVersion: CURRENT_SCHEMA_VERSION };
   await set(USER_CONFIG_KEY, merged);
   return merged;
 }
 
 export async function clearUserConfig() {
   await del(USER_CONFIG_KEY);
+}
+
+/**
+ * v1 → v2 migration. v1 had flat keys (`geminiModel`, `geminiCustomModel`,
+ * `geminiApiKey`) plus legacy gateway keys (`model`, `customModel`, `apiKey`)
+ * that were UI-removed but lingered in IDB and once caused a 401. v2 nests
+ * Gemini config and drops gateway storage entirely (gateway always uses
+ * bundled defaults — see model-config.js).
+ */
+function migrateUserConfig(cfg) {
+  const gemini = stripEmpty({
+    model: cfg.gemini?.model || cfg.geminiModel,
+    customModel: cfg.gemini?.customModel || cfg.geminiCustomModel,
+    apiKey: cfg.gemini?.apiKey || cfg.geminiApiKey
+  });
+  return {
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    provider: cfg.provider || 'gateway',
+    gemini,
+    ttsProvider: cfg.ttsProvider || 'browser',
+    ttsVoice: cfg.ttsVoice || 'Zephyr'
+  };
+}
+
+function stripEmpty(obj) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v != null && v !== '') out[k] = v;
+  }
+  return out;
 }
 
 const AUDIO_PREFIX = 'audio::';

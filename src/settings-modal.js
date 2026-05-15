@@ -1,6 +1,6 @@
 // Settings modal: lets the user pick an LLM provider (gateway / Gemini),
 // choose a model, and (optionally) supply their own API key. Stored in
-// IndexedDB. Gemini TTS shares the same `geminiApiKey` slot as the Gemini
+// IndexedDB. Gemini TTS shares the same `cfg.gemini.apiKey` slot as the Gemini
 // LLM path, so users only have to enter that key once.
 
 import { getUserConfig, setUserConfig, clearUserConfig } from './db.js';
@@ -49,10 +49,10 @@ async function renderForm() {
   const body = modalEl.querySelector('.settings-body');
   const cfg = await getUserConfig();
   const provider = cfg.provider || 'gateway';
-  const geminiModel = cfg.geminiModel || GEMINI_DEFAULT_MODEL;
-  const geminiCustom = cfg.geminiCustomModel || '';
-  const apiKey = cfg.apiKey || '';
-  const geminiApiKey = cfg.geminiApiKey || '';
+  const gemini = cfg.gemini || {};
+  const geminiModel = gemini.model || GEMINI_DEFAULT_MODEL;
+  const geminiCustom = gemini.customModel || '';
+  const geminiApiKey = gemini.apiKey || '';
 
   const currentTheme = getAppTheme();
 
@@ -253,20 +253,17 @@ async function renderForm() {
   body.querySelector('.settings-save').addEventListener('click', async () => {
     const newCfg = {
       provider: providerSel.value,
-      // Scrub legacy gateway-customisation fields; the UI no longer exposes
-      // them, so any saved value would silently override the bundled key.
-      model: undefined,
-      customModel: undefined,
-      apiKey: undefined,
-      geminiModel: geminiModelSel.value,
-      geminiCustomModel: body.querySelector('.settings-gemini-custom-model').value.trim(),
-      geminiApiKey: (llmGeminiKeyInput.value || ttsGeminiKeyInput.value).trim(),
+      gemini: {
+        model: geminiModelSel.value,
+        customModel: body.querySelector('.settings-gemini-custom-model').value.trim(),
+        apiKey: (llmGeminiKeyInput.value || ttsGeminiKeyInput.value).trim()
+      },
       ttsProvider: ttsProviderSel.value,
       ttsVoice: ttsVoiceSel.value
     };
     await setUserConfig(newCfg);
     const msg = newCfg.provider === 'gemini'
-      ? (newCfg.geminiApiKey ? 'Saved — using Gemini' : 'Saved — but Gemini API key is empty')
+      ? (newCfg.gemini.apiKey ? 'Saved — using Gemini' : 'Saved — but Gemini API key is empty')
       : 'Saved — using default';
     toast(msg, { duration: 2400 });
     hide();

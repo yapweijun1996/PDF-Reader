@@ -21,8 +21,8 @@ export const MODEL_OPTIONS = {
  * Returns the active LLM provider + model + key for translator/explain.
  *
  * - provider === 'gateway' (default): always uses the bundled key + model.
- *   Any leftover cfg.apiKey / cfg.model from a previous schema is ignored
- *   on purpose — see commit notes for the 401 we hit on 2026-05-15.
+ *   Gateway config isn't persisted in v2 — the UI doesn't expose it and
+ *   storing nothing keeps stale values from silently breaking auth.
  * - provider === 'gemini': returns the user's Gemini key + chosen model.
  */
 export async function getActiveModelConfig() {
@@ -30,10 +30,11 @@ export async function getActiveModelConfig() {
   const provider = cfg.provider || 'gateway';
 
   if (provider === 'gemini') {
-    const model = cfg.geminiModel === 'custom'
-      ? (cfg.geminiCustomModel || GEMINI_DEFAULT_MODEL)
-      : (cfg.geminiModel || GEMINI_DEFAULT_MODEL);
-    return { provider, model, apiKey: cfg.geminiApiKey || null };
+    const g = cfg.gemini || {};
+    const model = g.model === 'custom'
+      ? (g.customModel || GEMINI_DEFAULT_MODEL)
+      : (g.model || GEMINI_DEFAULT_MODEL);
+    return { provider, model, apiKey: g.apiKey || null };
   }
 
   return { provider: 'gateway', model: GATEWAY_DEFAULT_MODEL, apiKey: null };
@@ -41,10 +42,10 @@ export async function getActiveModelConfig() {
 
 /**
  * Returns the Gemini API key used for Gemini TTS, independent of which
- * LLM provider is active. Stored separately so a user can run translations
- * through the gateway while still using their own Gemini key for TTS.
+ * LLM provider is active. Shares the same storage slot as the Gemini LLM
+ * key — users only enter it once.
  */
 export async function getGeminiTtsKey() {
   const cfg = await getUserConfig();
-  return cfg.geminiApiKey || null;
+  return cfg.gemini?.apiKey || null;
 }

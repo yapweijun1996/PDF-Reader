@@ -1,6 +1,6 @@
 // Direct Google Gemini LLM client. Used by translator.js when the user
 // picks "Google Gemini" in Settings → AI Provider. The user supplies their
-// own Gemini API key (`geminiApiKey`); we send it via the x-goog-api-key
+// own Gemini API key (stored at `cfg.gemini.apiKey`); we send it via the x-goog-api-key
 // header rather than as a URL query string so it doesn't leak into
 // history / proxy logs.
 //
