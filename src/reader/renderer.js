@@ -117,11 +117,34 @@ export function bumpFont(containerEl, delta) {
   setReaderPrefs({ fontSize: newSize });
 }
 
+// Suppress auto-scroll for a few seconds after the user manually
+// scrolls — otherwise playback yanks the viewport away from whatever
+// they were trying to read. Listeners self-install on first call so
+// the controller doesn't have to thread setup through start/stop.
+const SCROLL_QUIET_MS = 3000;
+let lastUserScrollAt = 0;
+let scrollTrackingInit = false;
+
+function initScrollTracking() {
+  if (scrollTrackingInit) return;
+  scrollTrackingInit = true;
+  const stamp = () => { lastUserScrollAt = Date.now(); };
+  window.addEventListener('wheel', stamp, { passive: true });
+  window.addEventListener('touchmove', stamp, { passive: true });
+  window.addEventListener('keydown', (e) => {
+    if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', 'Space'].includes(e.code)) {
+      stamp();
+    }
+  });
+}
+
 /**
  * Highlight the card whose paragraph is currently being read aloud and
- * scroll it into view. Pass `segId === null` to clear the highlight.
+ * scroll it into view (unless the user was just scrolling, in which
+ * case we don't fight them). Pass `segId === null` to clear.
  */
 export function setSpeakingClass(cards, prevSegId, segId) {
+  initScrollTracking();
   if (prevSegId) {
     cards.get(prevSegId)?.el.classList.remove('reader-card-speaking');
   }
@@ -129,7 +152,10 @@ export function setSpeakingClass(cards, prevSegId, segId) {
     const card = cards.get(segId);
     if (card) {
       card.el.classList.add('reader-card-speaking');
-      card.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const userBrowsing = Date.now() - lastUserScrollAt < SCROLL_QUIET_MS;
+      if (!userBrowsing) {
+        card.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
   }
 }

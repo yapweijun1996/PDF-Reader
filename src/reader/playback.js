@@ -26,8 +26,10 @@ export function initPlayback(d) {
 export function getRate() { return playRate; }
 export function setRate(v) {
   playRate = v;
-  // Rate change mid-playback: restart current paragraph at new rate.
-  if (playing && currentSpeakingSeg) speakSequence(currentSpeakingSeg);
+  // Apply live where possible (Gemini HTMLAudioElement supports it);
+  // browser TTS will pick up the new rate on the next utterance. No
+  // restart — interrupting playback for a slider tweak is jarring.
+  tts.setLiveRate(v);
 }
 
 export function getCurrentSpeakingSeg() { return currentSpeakingSeg; }
@@ -124,13 +126,17 @@ function speakSequence(segId, waitAttempts = 0) {
   setSpeaking(segId);
   renderer.updateReadProgress(deps.getParagraphs(), segId, null);
 
-  // Prefetch the next paragraph's audio in the background while the
-  // current one plays. By the time playback ends the next paragraph is
-  // (usually) already in IDB, eliminating the synth-induced gap.
-  const nextId = nextSegAfter(segId);
-  if (nextId) {
-    const nextP = deps.getParagraphs().find(p => p.segId === nextId);
-    if (nextP) prefetchSegAudio(nextP).catch(() => {});
+  // Prefetch the next 2 paragraphs in the background while the current
+  // one plays. Short paragraphs (or fast playback rates) can finish
+  // before Gemini synth completes N+1, so warming N+2 too closes the
+  // gap. prefetchSegAudio short-circuits on IDB hit so the cost of
+  // looking too far ahead is small.
+  let cursor = segId;
+  for (let i = 0; i < 2; i++) {
+    cursor = nextSegAfter(cursor);
+    if (!cursor) break;
+    const p = deps.getParagraphs().find(pp => pp.segId === cursor);
+    if (p) prefetchSegAudio(p).catch(() => {});
   }
 
   tts.speak(text, ctx.lang, {

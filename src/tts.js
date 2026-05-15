@@ -70,6 +70,25 @@ export function langTagFor(targetLang) {
 export { GEMINI_VOICES };
 
 /**
+ * Best-effort live rate change on the currently-speaking utterance.
+ * - HTMLAudioElement (Gemini TTS): playbackRate IS live; takes effect
+ *   immediately while audio is playing.
+ * - SpeechSynthesisUtterance (browser TTS): rate is effectively read-
+ *   only once speech has started on most engines; this call is a no-op
+ *   but the rate stored on the utterance still informs any browser that
+ *   honours mid-speech changes. The next utterance picks the new rate
+ *   up via opts.rate as usual.
+ */
+export function setLiveRate(rate) {
+  if (currentAudio) {
+    try { currentAudio.playbackRate = rate; } catch {}
+  }
+  if (currentUtter) {
+    try { currentUtter.rate = rate; } catch {}
+  }
+}
+
+/**
  * Speak text. Routes by user-configured TTS provider.
  * opts: { rate, pitch, voiceURI (browser) | voice (gemini), onstart, onend, onerror }
  * Always cancels any in-flight playback first.
