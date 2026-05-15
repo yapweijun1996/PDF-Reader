@@ -7,7 +7,7 @@
 
 import { synthesizeGemini, GEMINI_VOICES } from './tts-gemini.js';
 import { getUserConfig, getAudioBlob, putAudioBlob, audioCacheKey } from './db.js';
-import { getActiveModelConfig } from './settings-modal.js';
+import { getGeminiTtsKey } from './model-config.js';
 import { toast } from './toast.js';
 
 const LANG_MAP = {
@@ -116,8 +116,7 @@ function speakBrowser(text, targetLang, opts) {
 }
 
 async function speakGemini(text, opts, targetLang) {
-  const userCfg = await getActiveModelConfig();
-  const apiKey = userCfg.apiKey;
+  const apiKey = await getGeminiTtsKey();
   if (!apiKey) throw new Error('Gemini TTS requires an API key — open Settings ⚙ and paste your Google AI Studio key.');
   const cfg = await getUserConfig();
   const voice = opts.voice || cfg.ttsVoice || 'Zephyr';

@@ -1,7 +1,7 @@
 // Translation + generic LLM call surface. Dispatches to the user-selected
 // provider (gateway by default, or Google Gemini if configured).
 
-import { getActiveModelConfig } from './settings-modal.js';
+import { getActiveModelConfig } from './model-config.js';
 import { callGateway } from './gateway.js';
 import { callGemini } from './llm-gemini.js';
 

@@ -9,18 +9,8 @@ import { getAppTheme, setAppTheme, THEMES } from './theme.js';
 import { GEMINI_VOICES, synthesizeGemini } from './tts-gemini.js';
 import { getTargetLang } from './settings.js';
 import { langTagFor } from './tts.js';
-import { GATEWAY_DEFAULT_MODEL } from './gateway.js';
 import { GEMINI_DEFAULT_MODEL } from './llm-gemini.js';
-
-const MODEL_OPTIONS = {
-  gemini: [
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (default)' },
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (slow, high quality)' },
-    { value: 'gemma-3-27b-it', label: 'Gemma 3 27B IT' },
-    { value: 'custom', label: 'Custom model name…' }
-  ]
-};
+import { MODEL_OPTIONS } from './model-config.js';
 
 let modalEl = null;
 
@@ -300,28 +290,6 @@ function hide() {
   setTimeout(() => { modalEl.hidden = true; }, 200);
 }
 
-/**
- * Returns the active provider + model + key for the LLM dispatch in
- * translator.js. For 'gateway', apiKey may be empty (gateway client falls
- * back to the bundled default). For 'gemini', apiKey is required and is
- * the user's own Google AI Studio key.
- */
-export async function getActiveModelConfig() {
-  const cfg = await getUserConfig();
-  const provider = cfg.provider || 'gateway';
-
-  if (provider === 'gemini') {
-    const model = cfg.geminiModel === 'custom'
-      ? (cfg.geminiCustomModel || GEMINI_DEFAULT_MODEL)
-      : (cfg.geminiModel || GEMINI_DEFAULT_MODEL);
-    return { provider, model, apiKey: cfg.geminiApiKey || null };
-  }
-
-  // Default gateway: never honour a saved cfg.apiKey / cfg.model — the UI no
-  // longer exposes these fields, so any leftover values from a prior schema
-  // would silently break auth. Always use the bundled default key + model.
-  return { provider: 'gateway', model: GATEWAY_DEFAULT_MODEL, apiKey: null };
-}
 
 function themeIcon(t) {
   if (t === 'light') return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>`;

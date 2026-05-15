@@ -8,7 +8,7 @@ import { getTrans, putTrans, getAudioBlob, putAudioBlob, audioCacheKey, getUserC
 import { extractAllParagraphs } from './paragraphs.js';
 import { renderMarkdown, looksLikeMarkdown } from './markdown.js';
 import { getReaderPrefs, setReaderPrefs, READER_THEMES } from './settings.js';
-import { getActiveModelConfig } from './settings-modal.js';
+import { getGeminiTtsKey } from './model-config.js';
 import { synthesizeGemini, wrapPcmInWav } from './tts-gemini.js';
 import * as tts from './tts.js';
 import { toast } from './toast.js';
@@ -228,8 +228,8 @@ async function prefetchSegAudio(p) {
   if (!ctx) return;
   const cfg = await getUserConfig();
   if (cfg.ttsProvider !== 'gemini') return;
-  const userCfg = await getActiveModelConfig();
-  if (!userCfg.apiKey) return;
+  const apiKey = await getGeminiTtsKey();
+  if (!apiKey) return;
   const card = cards.get(p.segId);
   const text = card?.target?.textContent || '';
   if (!text || /^Translating|^⚠️/.test(text)) return;
@@ -242,7 +242,7 @@ async function prefetchSegAudio(p) {
   inflightPrefetch.add(p.segId);
   try {
     console.log('[reader] prefetch synth', p.segId);
-    const blob = await synthesizeGemini({ text, voice, apiKey: userCfg.apiKey });
+    const blob = await synthesizeGemini({ text, voice, apiKey });
     await putAudioBlob(idbKey, blob);
   } catch (e) {
     console.warn('[reader] prefetch failed for', p.segId, e.message || e);
@@ -260,8 +260,8 @@ async function cacheAllAudio() {
     toast('Cache requires Gemini TTS — switch in Settings ⚙', { duration: 4000 });
     return;
   }
-  const userCfg = await getActiveModelConfig();
-  if (!userCfg.apiKey) {
+  const apiKey = await getGeminiTtsKey();
+  if (!apiKey) {
     toast('Cache requires your Gemini API key — open Settings ⚙', { duration: 4000 });
     return;
   }
@@ -290,7 +290,7 @@ async function cacheAllAudio() {
     }
     showCacheProgress(done, total, `synthesizing ${done}/${total}…`);
     try {
-      const blob = await synthesizeGemini({ text, voice, apiKey: userCfg.apiKey });
+      const blob = await synthesizeGemini({ text, voice, apiKey });
       await putAudioBlob(idbKey, blob);
       synthesized++;
     } catch (e) {
