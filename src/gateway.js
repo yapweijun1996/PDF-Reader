@@ -38,8 +38,9 @@ function getDefaultKey() {
  * @param {string} opts.prompt           Text content for the user turn.
  * @param {string} [opts.model]          Overrides DEFAULT_MODEL.
  * @param {string} [opts.apiKey]         Overrides the bundled default key.
- * @param {number} [opts.temperature]    Forwarded to the API.
  * @param {number} [opts.maxOutputTokens] Forwarded as max_output_tokens.
+ *        Note: `temperature` is intentionally NOT forwarded — gpt-5.x
+ *        reasoning models reject it with a 400.
  * @param {'minimal'|'low'|'medium'|'high'|'xhigh'} [opts.reasoningEffort='low']
  *        Reasoning budget. Defaults to 'low' for snappy translations.
  *        The gateway's own default is 'xhigh', which can drain quota — always
@@ -50,7 +51,6 @@ export async function callGateway({
   prompt,
   model,
   apiKey,
-  temperature,
   maxOutputTokens,
   reasoningEffort = 'low',
   signal
@@ -62,7 +62,6 @@ export async function callGateway({
     stream: true,
     reasoning: { effort: reasoningEffort }
   };
-  if (typeof temperature === 'number') body.temperature = temperature;
   if (typeof maxOutputTokens === 'number') body.max_output_tokens = maxOutputTokens;
 
   const res = await fetch(GATEWAY_URL, {
