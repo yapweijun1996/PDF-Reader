@@ -148,6 +148,37 @@ function applyMode(mode) {
   }
 }
 
+// Remembered across Reader entries so the "↗ jump to source" button on
+// a reader card can restore whatever mode the user was using to view
+// the PDF before they switched to Reader. Defaults to Selection if the
+// user opened Reader from a cold start.
+const PREV_MODE_KEY = 'pdfReader.lastNonReaderMode';
+
+function rememberNonReaderMode(mode) {
+  if (mode !== MODES.READER) {
+    try { sessionStorage.setItem(PREV_MODE_KEY, mode); } catch {}
+  }
+}
+
+function getRememberedNonReaderMode() {
+  try { return sessionStorage.getItem(PREV_MODE_KEY) || MODES.SELECTION; }
+  catch { return MODES.SELECTION; }
+}
+
+/**
+ * Mode switch from anywhere — keeps the dropdown, localStorage, body
+ * classes, and visible toast in sync. Used by the Mode selector
+ * change handler AND the Reader's "jump to source" event handler.
+ */
+function switchToMode(next, { silent = false } = {}) {
+  const sel = document.getElementById('modeSelect');
+  if (sel) sel.value = next;
+  rememberNonReaderMode(next);
+  setTranslateMode(next);
+  applyMode(next);
+  if (!silent) notify(`Mode: ${MODE_LABELS[next]}`, { duration: 1800 });
+}
+
 function mountModeSelector() {
   const sel = document.getElementById('modeSelect');
   if (!sel) return;
@@ -159,11 +190,34 @@ function mountModeSelector() {
     sel.appendChild(opt);
   }
   sel.value = getTranslateMode();
-  sel.addEventListener('change', () => {
-    const next = sel.value;
-    setTranslateMode(next);
-    applyMode(next);
-    notify(`Mode: ${MODE_LABELS[next]}`, { duration: 1800 });
+  // Initial mount: stash the current non-reader mode so a cold start
+  // straight into Reader still has a sensible fallback target.
+  rememberNonReaderMode(sel.value);
+  sel.addEventListener('change', () => switchToMode(sel.value));
+}
+
+/**
+ * Reader fires a `reader-jump-to-source` CustomEvent when the user
+ * clicks the ↗ button on a card. We switch back to whichever
+ * non-Reader mode they were last in, then scroll the corresponding
+ * .pdf-page into view.
+ */
+function initReaderJumpToSource() {
+  document.addEventListener('reader-jump-to-source', (e) => {
+    const segId = e.detail?.segId;
+    if (!segId) return;
+    const m = /^p(\d+)_/.exec(segId);
+    const pageIdx = m ? parseInt(m[1], 10) - 1 : -1;
+
+    switchToMode(getRememberedNonReaderMode(), { silent: true });
+
+    // The mode switch tears down the reader DOM; let the next paint
+    // settle before scrolling so the target page actually exists.
+    requestAnimationFrame(() => {
+      const pages = document.querySelectorAll('.pdf-page');
+      const target = pageIdx >= 0 ? pages[pageIdx] : null;
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   });
 }
 
@@ -267,6 +321,7 @@ async function boot() {
   initSettingsModal({ openButton: document.getElementById('settingsBtn') });
   initBilingualResizer();
   initZoomControls();
+  initReaderJumpToSource();
   detectPwaStandalone();
 
   initHistoryDrawer({

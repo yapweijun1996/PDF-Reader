@@ -19,6 +19,12 @@ export function makeCard(p, { onPlay }) {
   // translation is the primary content, source is the reference.
   el.innerHTML = `
     <div class="reader-card-actions">
+      <button class="reader-jump-btn" type="button" aria-label="Jump to source in PDF" title="Open this paragraph in the PDF view">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M7 17 17 7"/>
+          <path d="M9 7h8v8"/>
+        </svg>
+      </button>
       <button class="reader-play-btn" type="button" aria-label="Read aloud">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <polygon points="6 4 20 12 6 20 6 4" fill="currentColor" />
@@ -35,6 +41,14 @@ export function makeCard(p, { onPlay }) {
   el.querySelector('.reader-play-btn').addEventListener('click', (e) => {
     e.stopPropagation();
     onPlay(p.segId);
+  });
+  el.querySelector('.reader-jump-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    // Decoupled handoff to main.js — controller doesn't need to know
+    // anything about mode switching or the PDF viewer.
+    document.dispatchEvent(new CustomEvent('reader-jump-to-source', {
+      detail: { segId: p.segId }
+    }));
   });
 
   return { el, target: targetEl, source: sourceEl, p };
@@ -158,6 +172,54 @@ export function setSpeakingClass(cards, prevSegId, segId) {
       }
     }
   }
+}
+
+// -------- Viewport-center "current paragraph" tracking --------
+
+let currentSegEl = null;
+let intersectObserver = null;
+
+/**
+ * Tag whichever card is closest to the viewport center as
+ * `reader-card-current`. Used by the toolbar's Read All button to
+ * start playback from where the user is actually looking, instead of
+ * always from paragraph 1. Safe to call multiple times — it tears
+ * down the previous observer first.
+ */
+export function trackCurrentParagraph(listEl) {
+  stopTrackingCurrentParagraph();
+  // Only cards intersecting the central 20% strip of the viewport count.
+  intersectObserver = new IntersectionObserver((entries) => {
+    const inView = entries.filter(e => e.isIntersecting);
+    if (!inView.length) return;
+    const center = window.innerHeight / 2;
+    inView.sort((a, b) => {
+      const am = a.boundingClientRect.top + a.boundingClientRect.height / 2;
+      const bm = b.boundingClientRect.top + b.boundingClientRect.height / 2;
+      return Math.abs(am - center) - Math.abs(bm - center);
+    });
+    const newEl = inView[0].target;
+    if (newEl === currentSegEl) return;
+    if (currentSegEl) currentSegEl.classList.remove('reader-card-current');
+    currentSegEl = newEl;
+    currentSegEl.classList.add('reader-card-current');
+  }, {
+    root: null,
+    rootMargin: '-40% 0px -40% 0px',
+    threshold: 0
+  });
+  listEl.querySelectorAll('.reader-card').forEach(c => intersectObserver.observe(c));
+}
+
+export function stopTrackingCurrentParagraph() {
+  intersectObserver?.disconnect();
+  intersectObserver = null;
+  if (currentSegEl) currentSegEl.classList.remove('reader-card-current');
+  currentSegEl = null;
+}
+
+export function getCurrentSegId() {
+  return currentSegEl?.dataset.segId || null;
 }
 
 // -------- Progress bar (shared by audio caching + playback) --------

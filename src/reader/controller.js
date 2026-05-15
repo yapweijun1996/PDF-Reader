@@ -58,6 +58,7 @@ export function startReader({ container, toolbar, getContext }) {
 export function stopReader() {
   active = false;
   playback.stopPlayback();
+  renderer.stopTrackingCurrentParagraph();
   if (containerEl) containerEl.hidden = true;
   document.body.classList.remove('reader-open');
   if (listEl) listEl.innerHTML = '';
@@ -97,6 +98,7 @@ export function rebuild() {
   }
   listEl.appendChild(frag);
   toolbarCtl?.setQueueProgress(0, allParagraphs.length);
+  renderer.trackCurrentParagraph(listEl);
   pumpTranslate();
 }
 
@@ -157,7 +159,10 @@ function bindToolbar() {
   // All toolbar markup + wiring lives in reader-toolbar.js. We just hand
   // over a handlers map and stash the returned controls for state sync.
   toolbarCtl = renderReaderToolbar(toolbarEl, {
-    playAll: () => playback.togglePlayAll(allParagraphs[0]?.segId),
+    // Start playback from the paragraph the user is currently looking at,
+    // falling back to the very first paragraph if nothing is in the
+    // viewport center yet (e.g. user just opened Reader).
+    playAll: () => playback.togglePlayAll(renderer.getCurrentSegId() || allParagraphs[0]?.segId),
     stop: playback.stopPlayback,
     rate: (v) => playback.setRate(v),
     showSource: (on) => {

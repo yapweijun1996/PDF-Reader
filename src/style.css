@@ -1868,14 +1868,22 @@ body.mode-reader .viewer { display: none; }
   border-color: var(--r-accent);
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
 }
+.reader-card-current:not(.reader-card-speaking) {
+  /* Subtle 2px left rail — marks "Play All will start here" without
+     fighting for attention with the speaking-card highlight. */
+  box-shadow: inset 2px 0 0 0 var(--r-accent);
+}
 .reader-card-error { border-color: #b91c1c; }
 
 .reader-card-actions {
   position: absolute;
   top: 10px;
   right: 10px;
+  display: flex;
+  gap: 6px;
 }
-.reader-play-btn {
+.reader-play-btn,
+.reader-jump-btn {
   width: 36px;
   height: 36px;
   border-radius: 8px;
@@ -1887,8 +1895,12 @@ body.mode-reader .viewer { display: none; }
   align-items: center;
   justify-content: center;
 }
-.reader-play-btn svg { width: 14px; height: 14px; }
-.reader-play-btn:hover { background: #1e293b; }
+.reader-play-btn svg,
+.reader-jump-btn svg { width: 14px; height: 14px; }
+.reader-play-btn:hover,
+.reader-jump-btn:hover { background: #1e293b; }
+.reader-jump-btn { color: var(--r-muted); }
+.reader-jump-btn:hover { color: var(--r-accent); }
 
 .reader-target {
   color: var(--r-text);
@@ -1944,11 +1956,14 @@ body.hide-source .reader-source { display: none; }
   align-self: center;
 }
 
-.reader-play-btn {
+/* Reader-theme overrides for action buttons (card colour palette
+   instead of the global --panel-2 / --border tokens). */
+.reader-play-btn,
+.reader-jump-btn {
   background: var(--r-card-bg);
   border-color: var(--r-card-border);
-  color: var(--r-accent);
 }
+.reader-play-btn { color: var(--r-accent); }
 
 @media (max-width: 480px) {
   .reader-toolbar { padding: 8px 10px; gap: 8px; }
