@@ -1890,19 +1890,6 @@ body.mode-reader .viewer { display: none; }
 .reader-play-btn svg { width: 14px; height: 14px; }
 .reader-play-btn:hover { background: #1e293b; }
 
-.reader-source {
-  color: var(--r-muted);
-  font-size: calc(var(--r-font-size) * 0.82);
-  line-height: 1.5;
-  margin-right: 48px;
-  margin-bottom: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--r-card-border);
-}
-body.hide-source .reader-source { display: none; }
-body.hide-source .reader-card { padding-top: 14px; }
-body.hide-source .reader-target { margin-top: 0; }
-
 .reader-target {
   color: var(--r-text);
   font-size: var(--r-font-size);
@@ -1911,6 +1898,17 @@ body.hide-source .reader-target { margin-top: 0; }
   word-break: break-word;
   margin-right: 48px;
 }
+
+.reader-source {
+  color: var(--r-muted);
+  font-size: calc(var(--r-font-size) * 0.82);
+  line-height: 1.5;
+  margin-right: 48px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--r-card-border);
+}
+body.hide-source .reader-source { display: none; }
 
 .reader-empty {
   color: var(--r-muted);

@@ -15,6 +15,8 @@ export function makeCard(p, { onPlay }) {
   const el = document.createElement('article');
   el.className = 'reader-card';
   el.dataset.segId = p.segId;
+  // Target (translation) renders ABOVE source — for a reader app the
+  // translation is the primary content, source is the reference.
   el.innerHTML = `
     <div class="reader-card-actions">
       <button class="reader-play-btn" type="button" aria-label="Read aloud">
@@ -23,8 +25,8 @@ export function makeCard(p, { onPlay }) {
         </svg>
       </button>
     </div>
-    <div class="reader-source"></div>
     <div class="reader-target"><span class="spinner"></span> Translating…</div>
+    <div class="reader-source"></div>
   `;
   const sourceEl = el.querySelector('.reader-source');
   const targetEl = el.querySelector('.reader-target');
