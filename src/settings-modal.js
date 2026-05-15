@@ -1,11 +1,7 @@
-// Settings modal: lets the user supply their own gateway model and Bearer
-// key. Stored in IndexedDB. When set, translator/explain calls use the
-// user's key directly; when not set, they fall back to the bundled default
-// gateway key.
-//
-// TTS is independent: the optional Gemini TTS path uses its own
-// `geminiApiKey` field (since the LLM gateway and Google's TTS API are
-// separate services).
+// Settings modal: lets the user pick an LLM provider (gateway / Gemini),
+// choose a model, and (optionally) supply their own API key. Stored in
+// IndexedDB. Gemini TTS shares the same `geminiApiKey` slot as the Gemini
+// LLM path, so users only have to enter that key once.
 
 import { getUserConfig, setUserConfig, clearUserConfig } from './db.js';
 import { toast } from './toast.js';
@@ -14,11 +10,14 @@ import { GEMINI_VOICES, synthesizeGemini } from './tts-gemini.js';
 import { getTargetLang } from './settings.js';
 import { langTagFor } from './tts.js';
 import { GATEWAY_DEFAULT_MODEL } from './gateway.js';
+import { GEMINI_DEFAULT_MODEL } from './llm-gemini.js';
 
 const MODEL_OPTIONS = {
-  gateway: [
-    { value: 'gpt-5.4-mini', label: 'gpt-5.4-mini (default, fast)' },
-    { value: 'gpt-5.4', label: 'gpt-5.4 (high quality)' },
+  gemini: [
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (default)' },
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (slow, high quality)' },
+    { value: 'gemma-3-27b-it', label: 'Gemma 3 27B IT' },
     { value: 'custom', label: 'Custom model name…' }
   ]
 };
@@ -60,10 +59,10 @@ async function renderForm() {
   const body = modalEl.querySelector('.settings-body');
   const cfg = await getUserConfig();
   const provider = cfg.provider || 'gateway';
-  const model = cfg.model || GATEWAY_DEFAULT_MODEL;
+  const geminiModel = cfg.geminiModel || GEMINI_DEFAULT_MODEL;
+  const geminiCustom = cfg.geminiCustomModel || '';
   const apiKey = cfg.apiKey || '';
   const geminiApiKey = cfg.geminiApiKey || '';
-  const customModel = cfg.customModel || '';
 
   const currentTheme = getAppTheme();
 
@@ -80,36 +79,45 @@ async function renderForm() {
     </div>
 
     <div class="settings-section">
-      <div class="settings-section-title">AI Gateway</div>
+      <div class="settings-section-title">AI Provider</div>
     </div>
 
     <p class="settings-intro">
-      Translations and explanations route through
-      <code>gpt.yapweijun1996.com</code> (OpenAI-compatible Responses API).
-      Override the model or supply your own Bearer key below — values stay
-      in IndexedDB on this device.
+      Choose where translations and explanations run. Values stay in
+      IndexedDB on this device — never uploaded.
     </p>
     <label class="settings-row">
       <span>Provider</span>
       <select class="settings-provider">
-        <option value="gateway" ${provider === 'gateway' ? 'selected' : ''}>gpt.yapweijun1996.com (gateway)</option>
+        <option value="gateway" ${provider === 'gateway' ? 'selected' : ''}>Default</option>
+        <option value="gemini" ${provider === 'gemini' ? 'selected' : ''}>Google Gemini (your key)</option>
       </select>
     </label>
-    <label class="settings-row">
-      <span>Model</span>
-      <select class="settings-model"></select>
-    </label>
-    <label class="settings-row settings-row-custom" style="display:${model === 'custom' ? 'flex' : 'none'}">
-      <span>Custom model name</span>
-      <input class="settings-custom-model" type="text" placeholder="e.g. gpt-5.4" value="${escapeAttr(customModel)}" />
-    </label>
-    <label class="settings-row">
-      <span>Gateway key</span>
-      <input class="settings-apikey" type="password" autocomplete="off" placeholder="gw_…" value="${escapeAttr(apiKey)}" />
-    </label>
-    <p class="settings-hint">
-      Leave blank to use the bundled default key.
-    </p>
+
+    <div class="settings-provider-pane" data-pane="gateway" style="display:${provider === 'gateway' ? 'block' : 'none'}">
+      <p class="settings-hint">
+        Uses the bundled default model and key — no configuration needed.
+      </p>
+    </div>
+
+    <div class="settings-provider-pane" data-pane="gemini" style="display:${provider === 'gemini' ? 'block' : 'none'}">
+      <label class="settings-row">
+        <span>Model</span>
+        <select class="settings-gemini-model"></select>
+      </label>
+      <label class="settings-row settings-row-gemini-custom" style="display:${geminiModel === 'custom' ? 'flex' : 'none'}">
+        <span>Custom model name</span>
+        <input class="settings-gemini-custom-model" type="text" placeholder="e.g. gemini-2.5-flash-lite" value="${escapeAttr(geminiCustom)}" />
+      </label>
+      <label class="settings-row">
+        <span>Gemini API key</span>
+        <input class="settings-llm-gemini-key" type="password" autocomplete="off" placeholder="AIzaSy…" value="${escapeAttr(geminiApiKey)}" />
+      </label>
+      <p class="settings-hint">
+        Required. Get a free key at
+        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.
+      </p>
+    </div>
 
     <div class="settings-section">
       <div class="settings-section-title">Text-to-Speech</div>
@@ -117,7 +125,7 @@ async function renderForm() {
         <span>TTS provider</span>
         <select class="settings-tts-provider">
           <option value="browser" ${(cfg.ttsProvider || 'browser') === 'browser' ? 'selected' : ''}>Browser (free, system voices)</option>
-          <option value="gemini" ${cfg.ttsProvider === 'gemini' ? 'selected' : ''}>Gemini TTS (uses your API key, higher quality)</option>
+          <option value="gemini" ${cfg.ttsProvider === 'gemini' ? 'selected' : ''}>Gemini TTS (uses your Gemini API key, higher quality)</option>
         </select>
       </label>
       <label class="settings-row settings-row-tts-voice" style="display:${cfg.ttsProvider === 'gemini' ? 'flex' : 'none'}">
@@ -144,19 +152,32 @@ async function renderForm() {
     </div>
   `;
 
-  const modelSel = body.querySelector('.settings-model');
-  for (const opt of MODEL_OPTIONS.gateway) {
+  // Provider pane toggle
+  const providerSel = body.querySelector('.settings-provider');
+  providerSel.addEventListener('change', () => {
+    body.querySelector('[data-pane="gateway"]').style.display = providerSel.value === 'gateway' ? 'block' : 'none';
+    body.querySelector('[data-pane="gemini"]').style.display = providerSel.value === 'gemini' ? 'block' : 'none';
+  });
+
+  // Gemini model select
+  const geminiModelSel = body.querySelector('.settings-gemini-model');
+  for (const opt of MODEL_OPTIONS.gemini) {
     const o = document.createElement('option');
     o.value = opt.value;
     o.textContent = opt.label;
-    if (opt.value === model) o.selected = true;
-    modelSel.appendChild(o);
+    if (opt.value === geminiModel) o.selected = true;
+    geminiModelSel.appendChild(o);
   }
-
-  modelSel.addEventListener('change', () => {
-    body.querySelector('.settings-row-custom').style.display =
-      modelSel.value === 'custom' ? 'flex' : 'none';
+  geminiModelSel.addEventListener('change', () => {
+    body.querySelector('.settings-row-gemini-custom').style.display =
+      geminiModelSel.value === 'custom' ? 'flex' : 'none';
   });
+
+  // Keep the two Gemini-key inputs in sync (LLM pane + TTS pane share one storage slot)
+  const llmGeminiKeyInput = body.querySelector('.settings-llm-gemini-key');
+  const ttsGeminiKeyInput = body.querySelector('.settings-gemini-key');
+  llmGeminiKeyInput.addEventListener('input', () => { ttsGeminiKeyInput.value = llmGeminiKeyInput.value; });
+  ttsGeminiKeyInput.addEventListener('input', () => { llmGeminiKeyInput.value = ttsGeminiKeyInput.value; });
 
   // TTS provider + voice picker
   const ttsProviderSel = body.querySelector('.settings-tts-provider');
@@ -185,16 +206,16 @@ async function renderForm() {
       previewBtn.querySelector('.preview-label').textContent = 'Preview voice';
       return;
     }
-    const provider = ttsProviderSel.value;
+    const ttsProvider = ttsProviderSel.value;
     const voice = ttsVoiceSel.value;
-    const geminiKey = body.querySelector('.settings-gemini-key')?.value.trim() || '';
+    const geminiKey = ttsGeminiKeyInput.value.trim();
     const targetLang = getTargetLang();
     const sample = sampleTextFor(targetLang);
 
     previewBtn.disabled = true;
     previewBtn.querySelector('.preview-label').textContent = 'Loading…';
     try {
-      if (provider === 'gemini') {
+      if (ttsProvider === 'gemini') {
         if (!geminiKey) {
           toast('Enter your Gemini API key first to preview Gemini voices', { duration: 3000 });
           return;
@@ -241,16 +262,18 @@ async function renderForm() {
 
   body.querySelector('.settings-save').addEventListener('click', async () => {
     const newCfg = {
-      provider: body.querySelector('.settings-provider').value,
-      model: modelSel.value,
-      customModel: body.querySelector('.settings-custom-model').value.trim(),
-      apiKey: body.querySelector('.settings-apikey').value.trim(),
-      geminiApiKey: body.querySelector('.settings-gemini-key').value.trim(),
+      provider: providerSel.value,
+      geminiModel: geminiModelSel.value,
+      geminiCustomModel: body.querySelector('.settings-gemini-custom-model').value.trim(),
+      geminiApiKey: (llmGeminiKeyInput.value || ttsGeminiKeyInput.value).trim(),
       ttsProvider: ttsProviderSel.value,
       ttsVoice: ttsVoiceSel.value
     };
     await setUserConfig(newCfg);
-    toast(newCfg.apiKey ? 'Saved — using your gateway key' : 'Saved — using default gateway key', { duration: 2400 });
+    const msg = newCfg.provider === 'gemini'
+      ? (newCfg.geminiApiKey ? 'Saved — using Gemini' : 'Saved — but Gemini API key is empty')
+      : 'Saved — using default';
+    toast(msg, { duration: 2400 });
     hide();
   });
 
@@ -273,15 +296,26 @@ function hide() {
 }
 
 /**
- * Returns the active model + key the gateway client should use. Either field
- * may be null/empty, in which case gateway.js applies the bundled defaults.
+ * Returns the active provider + model + key for the LLM dispatch in
+ * translator.js. For 'gateway', apiKey may be empty (gateway client falls
+ * back to the bundled default). For 'gemini', apiKey is required and is
+ * the user's own Google AI Studio key.
  */
 export async function getActiveModelConfig() {
   const cfg = await getUserConfig();
+  const provider = cfg.provider || 'gateway';
+
+  if (provider === 'gemini') {
+    const model = cfg.geminiModel === 'custom'
+      ? (cfg.geminiCustomModel || GEMINI_DEFAULT_MODEL)
+      : (cfg.geminiModel || GEMINI_DEFAULT_MODEL);
+    return { provider, model, apiKey: cfg.geminiApiKey || null };
+  }
+
   const model = cfg.model === 'custom'
     ? (cfg.customModel || GATEWAY_DEFAULT_MODEL)
     : (cfg.model || GATEWAY_DEFAULT_MODEL);
-  return { model, apiKey: cfg.apiKey || null };
+  return { provider: 'gateway', model, apiKey: cfg.apiKey || null };
 }
 
 function themeIcon(t) {

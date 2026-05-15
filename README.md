@@ -7,9 +7,12 @@ PWA for reading PDFs in the browser. Highlight any text → AI auto-translates t
 ## Features
 
 - 📄 Renders any PDF with selectable text (uses [pdf.js](https://mozilla.github.io/pdf.js/))
-- 🌐 Highlight-to-translate via the OpenAI-compatible gateway at `gpt.yapweijun1996.com` (`gpt-5.4-mini` by default) — 15 target languages
+- 🌐 Highlight-to-translate — 15 target languages
+- 🔀 Two LLM providers selectable in Settings:
+  - **Default gateway** (`gpt.yapweijun1996.com`, OpenAI-compatible Responses API, `gpt-5.4-mini` by default)
+  - **Google Gemini** (`generativelanguage.googleapis.com`, BYO Google AI Studio key)
 - 📱 Mobile responsive, installable as PWA, works offline after first load
-- 🔐 Default Bearer key is XOR-obfuscated in `src/gateway.js`; users can override with their own key + model via Settings
+- 🔐 Default gateway Bearer key is XOR-obfuscated in `src/gateway.js`; users can override the key + model in Settings
 - 🚀 GitHub Actions auto-deploy to GitHub Pages on push to `main`
 
 ## Local development
@@ -27,10 +30,13 @@ npm run preview  # preview production build
 User selects text in PDF
   → debounced 250ms
   → src/translator.js builds the prompt
-  → src/gateway.js POSTs to https://gpt.yapweijun1996.com/v1/responses
-     (stream: true, reasoning.effort: 'low' by default — streaming avoids
-     Cloudflare's 100s 524 timeout for reasoning models)
-  → Floating tooltip shows the streamed translation
+  → dispatch by provider:
+      gateway → src/gateway.js   → POST gpt.yapweijun1996.com/v1/responses
+                                   (stream:true, reasoning.effort:'low' to
+                                    avoid Cloudflare's 100s 524 timeout)
+      gemini  → src/llm-gemini.js → POST generativelanguage.googleapis.com
+                                   (x-goog-api-key header)
+  → Floating tooltip shows the result
 ```
 
 The gateway speaks the OpenAI Responses API. SSE frames of type

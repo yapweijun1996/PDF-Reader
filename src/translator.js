@@ -1,12 +1,13 @@
-// Translation + generic LLM call surface, backed by the OpenAI-compatible
-// gateway in gateway.js. Settings can override the model/key per user.
+// Translation + generic LLM call surface. Dispatches to the user-selected
+// provider (gateway by default, or Google Gemini if configured).
 
 import { getActiveModelConfig } from './settings-modal.js';
 import { callGateway } from './gateway.js';
+import { callGemini } from './llm-gemini.js';
 
 const cache = new Map();
 
-// Kept for API stability — boot() awaits this. The gateway loads its key
+// Kept for API stability — boot() awaits this. Providers load their keys
 // lazily on first request, so there's nothing to preload here.
 export function ensureKeysLoaded() {
   return Promise.resolve();
@@ -53,6 +54,18 @@ export async function callModel(prompt, opts = {}) {
   if (!text) return '';
 
   const cfg = await getActiveModelConfig();
+
+  if (cfg.provider === 'gemini') {
+    return callGemini({
+      prompt: text,
+      model: cfg.model,
+      apiKey: cfg.apiKey,
+      temperature: opts.temperature,
+      maxOutputTokens: opts.maxOutputTokens,
+      signal: opts.signal
+    });
+  }
+
   return callGateway({
     prompt: text,
     model: cfg.model || undefined,
