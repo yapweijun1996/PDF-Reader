@@ -263,6 +263,11 @@ async function renderForm() {
   body.querySelector('.settings-save').addEventListener('click', async () => {
     const newCfg = {
       provider: providerSel.value,
+      // Scrub legacy gateway-customisation fields; the UI no longer exposes
+      // them, so any saved value would silently override the bundled key.
+      model: undefined,
+      customModel: undefined,
+      apiKey: undefined,
       geminiModel: geminiModelSel.value,
       geminiCustomModel: body.querySelector('.settings-gemini-custom-model').value.trim(),
       geminiApiKey: (llmGeminiKeyInput.value || ttsGeminiKeyInput.value).trim(),
@@ -312,10 +317,10 @@ export async function getActiveModelConfig() {
     return { provider, model, apiKey: cfg.geminiApiKey || null };
   }
 
-  const model = cfg.model === 'custom'
-    ? (cfg.customModel || GATEWAY_DEFAULT_MODEL)
-    : (cfg.model || GATEWAY_DEFAULT_MODEL);
-  return { provider: 'gateway', model, apiKey: cfg.apiKey || null };
+  // Default gateway: never honour a saved cfg.apiKey / cfg.model — the UI no
+  // longer exposes these fields, so any leftover values from a prior schema
+  // would silently break auth. Always use the bundled default key + model.
+  return { provider: 'gateway', model: GATEWAY_DEFAULT_MODEL, apiKey: null };
 }
 
 function themeIcon(t) {
