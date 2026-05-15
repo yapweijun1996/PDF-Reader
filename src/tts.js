@@ -5,7 +5,7 @@
 // All callsites import { speak, cancel, listVoicesForLang, langTagFor }
 // and don't need to know which provider runs underneath.
 
-import { synthesizeGemini, GEMINI_VOICES } from './tts-gemini.js';
+import { GEMINI_VOICES } from './gemini-voices.js';
 import { getUserConfig, getAudioBlob, putAudioBlob, audioCacheKey } from './db.js';
 import { getGeminiTtsKey } from './model-config.js';
 import { toast } from './toast.js';
@@ -135,9 +135,10 @@ async function speakGemini(text, opts, targetLang) {
       opts.onstart?.();
       console.log('[tts] IDB hit, ' + blob.size + ' bytes');
     } else {
-      // Tier 3: synthesize via Gemini
+      // Tier 3: synthesize via Gemini (lazy-load — heavy module pulled only here)
       opts.onstart?.();
       console.log('[tts] Gemini synthesizing…', { voice, len: text.length });
+      const { synthesizeGemini } = await import('./tts-gemini.js');
       blob = await synthesizeGemini({ text, voice, apiKey, onProgress: opts.onProgress });
       try { await putAudioBlob(idbKey, blob); } catch (e) {
         console.warn('[tts] IDB save failed (continuing):', e);

@@ -6,7 +6,7 @@
 import { getUserConfig, setUserConfig, clearUserConfig } from './db.js';
 import { toast } from './toast.js';
 import { getAppTheme, setAppTheme, THEMES } from './theme.js';
-import { GEMINI_VOICES, synthesizeGemini } from './tts-gemini.js';
+import { GEMINI_VOICES } from './gemini-voices.js';
 import { getTargetLang } from './settings.js';
 import { langTagFor } from './tts.js';
 import { GEMINI_DEFAULT_MODEL } from './llm-gemini.js';
@@ -210,6 +210,7 @@ async function renderForm() {
           toast('Enter your Gemini API key first to preview Gemini voices', { duration: 3000 });
           return;
         }
+        const { synthesizeGemini } = await import('./tts-gemini.js');
         const blob = await synthesizeGemini({ text: sample, voice, apiKey: geminiKey });
         const url = URL.createObjectURL(blob);
         previewAudio = new Audio(url);

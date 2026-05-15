@@ -17,38 +17,8 @@ const SAMPLE_RATE = 24000;
 const CHANNELS = 1;
 const BITS_PER_SAMPLE = 16;
 
-export const GEMINI_VOICES = [
-  { name: 'Zephyr',         tone: 'Bright' },
-  { name: 'Puck',           tone: 'Upbeat' },
-  { name: 'Charon',         tone: 'Informative' },
-  { name: 'Kore',           tone: 'Firm' },
-  { name: 'Fenrir',         tone: 'Excitable' },
-  { name: 'Leda',           tone: 'Youthful' },
-  { name: 'Orus',           tone: 'Firm' },
-  { name: 'Aoede',          tone: 'Breezy' },
-  { name: 'Callirrhoe',     tone: 'Easy-going' },
-  { name: 'Autonoe',        tone: 'Bright' },
-  { name: 'Enceladus',      tone: 'Breathy' },
-  { name: 'Iapetus',        tone: 'Clear' },
-  { name: 'Umbriel',        tone: 'Easy-going' },
-  { name: 'Algieba',        tone: 'Smooth' },
-  { name: 'Despina',        tone: 'Smooth' },
-  { name: 'Erinome',        tone: 'Clear' },
-  { name: 'Algenib',        tone: 'Gravelly' },
-  { name: 'Rasalgethi',     tone: 'Informative' },
-  { name: 'Laomedeia',      tone: 'Upbeat' },
-  { name: 'Achernar',       tone: 'Soft' },
-  { name: 'Alnilam',        tone: 'Firm' },
-  { name: 'Schedar',        tone: 'Even' },
-  { name: 'Gacrux',         tone: 'Mature' },
-  { name: 'Pulcherrima',    tone: 'Forward' },
-  { name: 'Achird',         tone: 'Friendly' },
-  { name: 'Zubenelgenubi',  tone: 'Casual' },
-  { name: 'Vindemiatrix',   tone: 'Gentle' },
-  { name: 'Sadachbia',      tone: 'Lively' },
-  { name: 'Sadaltager',     tone: 'Knowledgeable' },
-  { name: 'Sulafat',        tone: 'Warm' }
-];
+// GEMINI_VOICES moved to ./gemini-voices.js so callers (Settings, tts.js)
+// can populate the voice dropdown without pulling the synth-and-WAV code.
 
 // Gemini TTS audio output cap ≈ 30 seconds per request. Empirical testing
 // (user reported "150 words → only 100 words audible") shows 500-char input

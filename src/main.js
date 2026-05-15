@@ -8,7 +8,6 @@ import { translate, ensureKeysLoaded } from './translator.js';
 import { explain } from './explain.js';
 import { mountLangSelector, getTargetLang, getTranslateMode, setTranslateMode, MODES, MODE_LABELS, isAutoMode, isReaderMode } from './settings.js';
 import { startAutoTranslate, stopAutoTranslate, rescanPages } from './auto-translator.js';
-import { startReader, stopReader, rebuild as rebuildReader } from './reader.js';
 import { initTTS } from './tts.js';
 import { initTooltip, showLoading, showResult, showError } from './tooltip.js';
 import { wireUploadUI, openPdfFile, openPdfFromRecord } from './upload.js';
@@ -36,6 +35,36 @@ let currentDocHash = null;
 let currentHasTextLayer = true;
 let lastSelectionContext = '';
 let loadingToastId = null;
+
+// Lazy-load reader.js (and its transitive deps: reader-toolbar, tts-gemini)
+// only when the user first picks Reader mode. Reader is opt-in — most users
+// never enter it, so keeping it out of the initial bundle is a clear win.
+let _readerModule = null;
+let _readerModulePromise = null;
+
+function loadReaderModule() {
+  if (_readerModule) return Promise.resolve(_readerModule);
+  if (!_readerModulePromise) {
+    _readerModulePromise = import('./reader.js').then(mod => {
+      _readerModule = mod;
+      return mod;
+    });
+  }
+  return _readerModulePromise;
+}
+
+async function startReader(args) {
+  const mod = await loadReaderModule();
+  mod.startReader(args);
+}
+
+function stopReader() {
+  if (_readerModule) _readerModule.stopReader();
+}
+
+function rebuildReader() {
+  if (_readerModule) _readerModule.rebuild();
+}
 
 function setLoading(msg) {
   if (msg) {
