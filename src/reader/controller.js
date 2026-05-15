@@ -8,6 +8,7 @@ import { extractAllParagraphs } from '../paragraphs.js';
 import { getReaderPrefs, READER_THEMES } from '../settings.js';
 import { friendlyMessage } from '../llm-error.js';
 import { renderReaderToolbar } from '../reader-toolbar.js';
+import { langTagFor } from '../tts.js';
 import * as renderer from './renderer.js';
 import * as playback from './playback.js';
 
@@ -201,11 +202,21 @@ function exportTxt() {
   const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `translation-${Date.now()}.txt`;
+  // BCP-47 short tag + ISO date so multiple exports stay distinguishable
+  // (e.g. translation-zh-CN-2026-05-15.txt). Falls back to 'unknown' if
+  // we somehow lost the lang context.
+  const tag = lang ? langTagFor(lang) : 'unknown';
+  a.download = `translation-${tag}-${isoDate()}.txt`;
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function isoDate(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 

@@ -189,6 +189,11 @@ async function prefetchSegAudio(p) {
   }
 }
 
+// Empirical: a Gemini TTS round-trip on gpt.yapweijun1996.com averages
+// ~3s per paragraph. Used to set expectations before kicking off a
+// long-running cache fill.
+const GEMINI_SECS_PER_PARAGRAPH = 3;
+
 export async function cacheAllAudio() {
   const allParagraphs = deps.getParagraphs();
   if (!allParagraphs.length) return;
@@ -204,9 +209,17 @@ export async function cacheAllAudio() {
     toast('Cache requires your Gemini API key — open Settings ⚙', { duration: 4000 });
     return;
   }
+  const total = allParagraphs.length;
+  const estSecs = total * GEMINI_SECS_PER_PARAGRAPH;
+  const estLabel = estSecs >= 60 ? `~${Math.round(estSecs / 60)} min` : `~${estSecs}s`;
+  const ok = window.confirm(
+    `Cache audio for all ${total} paragraphs?\n\n` +
+    `Estimated time: ${estLabel} (uses your Gemini API quota).\n` +
+    `Cached paragraphs will be skipped.`
+  );
+  if (!ok) return;
   const voice = cfg.ttsVoice || 'Zephyr';
   const langTag = tts.langTagFor(ctx.lang);
-  const total = allParagraphs.length;
   const { synthesizeGemini } = await import('../tts-gemini.js');
   let done = 0;
   let synthesized = 0;
@@ -254,8 +267,12 @@ export async function downloadAllAudio() {
 
   renderer.showProgress(0, allParagraphs.length, 'Collecting audio…');
   const pcmParts = [];
-  let sampleRate = 24000;
+  // Use the FIRST sample rate we see and skip any later chunk that
+  // disagrees (e.g. user re-voiced mid-session with a different
+  // model). Merging incompatible rates plays back at the wrong pitch.
+  let sampleRate = null;
   let missing = 0;
+  let rateSkipped = 0;
   for (let i = 0; i < allParagraphs.length; i++) {
     const p = allParagraphs[i];
     const card = deps.getCards().get(p.segId);
@@ -270,13 +287,19 @@ export async function downloadAllAudio() {
     if (buf.byteLength < 44) continue;
     const riff = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3));
     if (riff !== 'RIFF') continue;
-    sampleRate = view.getUint32(24, true);
+    const itemRate = view.getUint32(24, true);
+    if (sampleRate === null) {
+      sampleRate = itemRate;
+    } else if (itemRate !== sampleRate) {
+      rateSkipped++;
+      continue;
+    }
     pcmParts.push(new Uint8Array(buf, 44));
   }
   renderer.hideProgress();
 
   if (!pcmParts.length) {
-    toast('No cached audio yet. Click "Cache all" first.', { duration: 4000 });
+    toast('No cached audio yet. Click "Cache" first.', { duration: 4000 });
     return;
   }
 
@@ -285,16 +308,26 @@ export async function downloadAllAudio() {
   let off = 0;
   for (const a of pcmParts) { merged.set(a, off); off += a.length; }
   const { wrapPcmInWav } = await import('../tts-gemini.js');
-  const wavBytes = wrapPcmInWav(merged, sampleRate, 1, 16);
+  const wavBytes = wrapPcmInWav(merged, sampleRate || 24000, 1, 16);
   const blob = new Blob([wavBytes], { type: 'audio/wav' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `pdf-reader-audio-${Date.now()}.wav`;
+  a.download = `pdf-reader-audio-${isoDate()}.wav`;
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1500);
 
-  toast(`Downloaded ${pcmParts.length} clips${missing ? ` · ${missing} not cached (skipped)` : ''}`, { duration: 4000 });
+  const parts = [`Downloaded ${pcmParts.length} clips`];
+  if (missing) parts.push(`${missing} not cached`);
+  if (rateSkipped) parts.push(`${rateSkipped} skipped (sample-rate mismatch)`);
+  toast(parts.join(' · '), { duration: 5000 });
+}
+
+function isoDate(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
