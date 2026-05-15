@@ -7,9 +7,9 @@ PWA for reading PDFs in the browser. Highlight any text → AI auto-translates t
 ## Features
 
 - 📄 Renders any PDF with selectable text (uses [pdf.js](https://mozilla.github.io/pdf.js/))
-- 🌐 Highlight-to-translate via [Gemma 3 27B IT](https://ai.google.dev/gemma) — 15 target languages
+- 🌐 Highlight-to-translate via the OpenAI-compatible gateway at `gpt.yapweijun1996.com` (`gpt-5.4-mini` by default) — 15 target languages
 - 📱 Mobile responsive, installable as PWA, works offline after first load
-- 🔁 API key rotation + 429/500 retry (XOR-encrypted keys in `public/gemma_code.jsonl`)
+- 🔐 Default Bearer key is XOR-obfuscated in `src/gateway.js`; users can override with their own key + model via Settings
 - 🚀 GitHub Actions auto-deploy to GitHub Pages on push to `main`
 
 ## Local development
@@ -26,12 +26,16 @@ npm run preview  # preview production build
 ```
 User selects text in PDF
   → debounced 250ms
-  → src/translator.js calls callGeminiAPI() (loaded as classic <script> from public/gemma.js)
-  → public/gemma.js rotates encrypted keys from public/gemma_code.jsonl
-  → Floating tooltip shows translation
+  → src/translator.js builds the prompt
+  → src/gateway.js POSTs to https://gpt.yapweijun1996.com/v1/responses
+     (stream: true, reasoning.effort: 'low' by default — streaming avoids
+     Cloudflare's 100s 524 timeout for reasoning models)
+  → Floating tooltip shows the streamed translation
 ```
 
-`public/gemma.js` is loaded via classic `<script>` tag (not ES module) so its `var` globals attach to `window` — `translator.js` calls `window.callGeminiAPI()` directly. Reused as-is, no modifications.
+The gateway speaks the OpenAI Responses API. SSE frames of type
+`response.output_text.delta` carry incremental tokens; the final
+`response.completed` event holds the assembled message.
 
 ## Demo PDF
 
@@ -40,5 +44,4 @@ User selects text in PDF
 ## License
 
 - Project code: MIT
-- AI translation uses [Gemma 3](https://ai.google.dev/gemma/terms) — subject to Google's Gemma Terms of Use.
-- API keys in `public/gemma_code.jsonl` are XOR-obfuscated for demo purposes only — **not production-safe encryption**. Use a backend proxy for production deployments.
+- The Bearer key shipped in `src/gateway.js` is XOR-obfuscated for demo purposes only — **not production-safe encryption**. Anyone running the decrypt routine in devtools can recover it. For production, put a backend proxy in front of the gateway.

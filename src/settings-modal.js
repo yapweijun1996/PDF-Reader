@@ -1,10 +1,11 @@
-// Settings modal: lets the user supply their own LLM provider, model, and
-// API key. Stored in IndexedDB. When set, translator/explain calls use the
-// user's key directly; when not set, they fall back to the bundled rotation.
+// Settings modal: lets the user supply their own gateway model and Bearer
+// key. Stored in IndexedDB. When set, translator/explain calls use the
+// user's key directly; when not set, they fall back to the bundled default
+// gateway key.
 //
-// Provider currently fixed to Gemini, but the schema is provider-aware so
-// we can add OpenAI / Anthropic / local Ollama later without breaking
-// stored configs.
+// TTS is independent: the optional Gemini TTS path uses its own
+// `geminiApiKey` field (since the LLM gateway and Google's TTS API are
+// separate services).
 
 import { getUserConfig, setUserConfig, clearUserConfig } from './db.js';
 import { toast } from './toast.js';
@@ -12,13 +13,12 @@ import { getAppTheme, setAppTheme, THEMES } from './theme.js';
 import { GEMINI_VOICES, synthesizeGemini } from './tts-gemini.js';
 import { getTargetLang } from './settings.js';
 import { langTagFor } from './tts.js';
+import { GATEWAY_DEFAULT_MODEL } from './gateway.js';
 
 const MODEL_OPTIONS = {
-  gemini: [
-    { value: 'gemma-3-27b-it', label: 'Gemma 3 27B IT (default, fast)' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (slow, high quality)' },
+  gateway: [
+    { value: 'gpt-5.4-mini', label: 'gpt-5.4-mini (default, fast)' },
+    { value: 'gpt-5.4', label: 'gpt-5.4 (high quality)' },
     { value: 'custom', label: 'Custom model name…' }
   ]
 };
@@ -59,9 +59,10 @@ function createModal() {
 async function renderForm() {
   const body = modalEl.querySelector('.settings-body');
   const cfg = await getUserConfig();
-  const provider = cfg.provider || 'gemini';
-  const model = cfg.model || 'gemma-3-27b-it';
+  const provider = cfg.provider || 'gateway';
+  const model = cfg.model || GATEWAY_DEFAULT_MODEL;
   const apiKey = cfg.apiKey || '';
+  const geminiApiKey = cfg.geminiApiKey || '';
   const customModel = cfg.customModel || '';
 
   const currentTheme = getAppTheme();
@@ -79,17 +80,19 @@ async function renderForm() {
     </div>
 
     <div class="settings-section">
-      <div class="settings-section-title">AI Provider</div>
+      <div class="settings-section-title">AI Gateway</div>
     </div>
 
     <p class="settings-intro">
-      Use your own API key to bypass the shared rotation. Stored locally
-      in IndexedDB on your device — never uploaded.
+      Translations and explanations route through
+      <code>gpt.yapweijun1996.com</code> (OpenAI-compatible Responses API).
+      Override the model or supply your own Bearer key below — values stay
+      in IndexedDB on this device.
     </p>
     <label class="settings-row">
       <span>Provider</span>
       <select class="settings-provider">
-        <option value="gemini" ${provider === 'gemini' ? 'selected' : ''}>Google Gemini / Gemma</option>
+        <option value="gateway" ${provider === 'gateway' ? 'selected' : ''}>gpt.yapweijun1996.com (gateway)</option>
       </select>
     </label>
     <label class="settings-row">
@@ -98,15 +101,14 @@ async function renderForm() {
     </label>
     <label class="settings-row settings-row-custom" style="display:${model === 'custom' ? 'flex' : 'none'}">
       <span>Custom model name</span>
-      <input class="settings-custom-model" type="text" placeholder="e.g. gemini-2.5-flash-lite" value="${escapeAttr(customModel)}" />
+      <input class="settings-custom-model" type="text" placeholder="e.g. gpt-5.4" value="${escapeAttr(customModel)}" />
     </label>
     <label class="settings-row">
-      <span>API Key</span>
-      <input class="settings-apikey" type="password" autocomplete="off" placeholder="AIzaSy…" value="${escapeAttr(apiKey)}" />
+      <span>Gateway key</span>
+      <input class="settings-apikey" type="password" autocomplete="off" placeholder="gw_…" value="${escapeAttr(apiKey)}" />
     </label>
     <p class="settings-hint">
-      Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.
-      Leave blank to use the shared rotation.
+      Leave blank to use the bundled default key.
     </p>
 
     <div class="settings-section">
@@ -121,6 +123,10 @@ async function renderForm() {
       <label class="settings-row settings-row-tts-voice" style="display:${cfg.ttsProvider === 'gemini' ? 'flex' : 'none'}">
         <span>Voice</span>
         <select class="settings-tts-voice"></select>
+      </label>
+      <label class="settings-row settings-row-tts-key" style="display:${cfg.ttsProvider === 'gemini' ? 'flex' : 'none'}">
+        <span>Gemini API key</span>
+        <input class="settings-gemini-key" type="password" autocomplete="off" placeholder="AIzaSy…" value="${escapeAttr(geminiApiKey)}" />
       </label>
       <div class="settings-row settings-row-tts-preview">
         <button class="settings-preview-tts" type="button">
@@ -139,7 +145,7 @@ async function renderForm() {
   `;
 
   const modelSel = body.querySelector('.settings-model');
-  for (const opt of MODEL_OPTIONS.gemini) {
+  for (const opt of MODEL_OPTIONS.gateway) {
     const o = document.createElement('option');
     o.value = opt.value;
     o.textContent = opt.label;
@@ -164,8 +170,9 @@ async function renderForm() {
     ttsVoiceSel.appendChild(o);
   }
   ttsProviderSel.addEventListener('change', () => {
-    body.querySelector('.settings-row-tts-voice').style.display =
-      ttsProviderSel.value === 'gemini' ? 'flex' : 'none';
+    const showGemini = ttsProviderSel.value === 'gemini';
+    body.querySelector('.settings-row-tts-voice').style.display = showGemini ? 'flex' : 'none';
+    body.querySelector('.settings-row-tts-key').style.display = showGemini ? 'flex' : 'none';
   });
 
   // Preview voice — uses current inputs without requiring Save first
@@ -180,7 +187,7 @@ async function renderForm() {
     }
     const provider = ttsProviderSel.value;
     const voice = ttsVoiceSel.value;
-    const apiKey = body.querySelector('.settings-apikey').value.trim();
+    const geminiKey = body.querySelector('.settings-gemini-key')?.value.trim() || '';
     const targetLang = getTargetLang();
     const sample = sampleTextFor(targetLang);
 
@@ -188,11 +195,11 @@ async function renderForm() {
     previewBtn.querySelector('.preview-label').textContent = 'Loading…';
     try {
       if (provider === 'gemini') {
-        if (!apiKey) {
-          toast('Enter your API key first to preview Gemini voices', { duration: 3000 });
+        if (!geminiKey) {
+          toast('Enter your Gemini API key first to preview Gemini voices', { duration: 3000 });
           return;
         }
-        const blob = await synthesizeGemini({ text: sample, voice, apiKey });
+        const blob = await synthesizeGemini({ text: sample, voice, apiKey: geminiKey });
         const url = URL.createObjectURL(blob);
         previewAudio = new Audio(url);
         previewAudio.addEventListener('ended', () => {
@@ -238,16 +245,17 @@ async function renderForm() {
       model: modelSel.value,
       customModel: body.querySelector('.settings-custom-model').value.trim(),
       apiKey: body.querySelector('.settings-apikey').value.trim(),
+      geminiApiKey: body.querySelector('.settings-gemini-key').value.trim(),
       ttsProvider: ttsProviderSel.value,
       ttsVoice: ttsVoiceSel.value
     };
     await setUserConfig(newCfg);
-    toast(newCfg.apiKey ? 'Saved — using your API key' : 'Saved — using shared rotation', { duration: 2400 });
+    toast(newCfg.apiKey ? 'Saved — using your gateway key' : 'Saved — using default gateway key', { duration: 2400 });
     hide();
   });
 
   body.querySelector('.settings-clear').addEventListener('click', async () => {
-    if (!confirm('Clear your API key and reset to shared rotation?')) return;
+    if (!confirm('Clear your saved keys and reset to defaults?')) return;
     await clearUserConfig();
     toast('Settings cleared', { duration: 2000 });
     hide();
@@ -265,16 +273,15 @@ function hide() {
 }
 
 /**
- * Returns the active model + key the translator should use.
- * Falls back to (null, null) which means use the bundled rotation.
+ * Returns the active model + key the gateway client should use. Either field
+ * may be null/empty, in which case gateway.js applies the bundled defaults.
  */
 export async function getActiveModelConfig() {
   const cfg = await getUserConfig();
-  if (!cfg.apiKey) return { model: null, apiKey: null };
   const model = cfg.model === 'custom'
-    ? (cfg.customModel || 'gemma-3-27b-it')
-    : (cfg.model || 'gemma-3-27b-it');
-  return { model, apiKey: cfg.apiKey };
+    ? (cfg.customModel || GATEWAY_DEFAULT_MODEL)
+    : (cfg.model || GATEWAY_DEFAULT_MODEL);
+  return { model, apiKey: cfg.apiKey || null };
 }
 
 function themeIcon(t) {

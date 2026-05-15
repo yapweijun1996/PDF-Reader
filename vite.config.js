@@ -10,9 +10,9 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['attention.pdf', 'gemma_code.jsonl', 'gallery.json', 'icons/*.png', 'icons/*.svg'],
+      includeAssets: ['attention.pdf', 'gallery.json', 'icons/*.png', 'icons/*.svg'],
       workbox: {
-        globPatterns: ['**/*.{js,css,html,pdf,jsonl,json,png,svg,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,pdf,json,png,svg,webmanifest}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
