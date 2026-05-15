@@ -26,6 +26,11 @@ import { registerSW } from 'virtual:pwa-register';
 
 const viewer = () => document.getElementById('viewer');
 
+// Toast duration constants — keep handler UX consistent.
+const TOAST_OK = 2500;
+const TOAST_WARN = 5000;
+const TOAST_ERR = 5000;
+
 let currentDocHash = null;
 let currentHasTextLayer = true;
 let lastSelectionContext = '';
@@ -132,87 +137,67 @@ function mountModeSelector() {
   });
 }
 
-async function loadDemoPdf() {
-  setLoading('Loading demo PDF…');
+/**
+ * Run a PDF loader and apply uniform side effects: stash state, sync
+ * bilingual layout, warn on scanned PDFs, kick off auto-translate /
+ * reader mode if active. All callers share this so the post-open
+ * behaviour stays in lockstep across demo / file picker / gallery /
+ * history flows.
+ */
+async function openPdf(supplier, { successLabel } = {}) {
   try {
+    const { docHash, hasTextLayer } = await supplier();
+    currentDocHash = docHash;
+    currentHasTextLayer = hasTextLayer;
+    applyBilingualScale();
+    if (!hasTextLayer) {
+      notify('⚠️ Scanned PDF — translation unavailable', { duration: TOAST_WARN });
+    } else if (successLabel) {
+      notify('Opened: ' + successLabel, { duration: TOAST_OK });
+    }
+    const m = getTranslateMode();
+    if (hasTextLayer) {
+      if (isAutoMode(m)) rescanPages();
+      if (isReaderMode(m)) rebuildReader();
+    }
+  } catch (e) {
+    console.error(e);
+    notify(`⚠️ ${e.message}`, { duration: TOAST_ERR });
+  } finally {
+    setLoading(null);
+  }
+}
+
+function loadDemoPdf() {
+  setLoading('Loading demo PDF…');
+  return openPdf(async () => {
     const url = `${import.meta.env.BASE_URL}attention.pdf`;
     const res = await fetch(url);
     const buf = await res.arrayBuffer();
-    currentDocHash = await getDocHash(buf);
+    const docHash = await getDocHash(buf);
     const { hasTextLayer } = await renderPdf(new Uint8Array(buf), viewer());
-    currentHasTextLayer = hasTextLayer;
-    applyBilingualScale();
-    if (!hasTextLayer) {
-      notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
-    }
-    const m = getTranslateMode();
-    if (isAutoMode(m) && hasTextLayer) rescanPages();
-    if (isReaderMode(m) && hasTextLayer) rebuildReader();
-  } finally {
-    setLoading(null);
-  }
+    return { docHash, hasTextLayer };
+  });
 }
 
-async function handleFile(file) {
-  try {
-    const { docHash, hasTextLayer } = await openPdfFile(file, viewer(), setLoading);
-    currentDocHash = docHash;
-    currentHasTextLayer = hasTextLayer;
-    applyBilingualScale();
-    if (!hasTextLayer) {
-      notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
-    } else {
-      notify('Opened: ' + file.name, { duration: 2500 });
-    }
-    const m = getTranslateMode();
-    if (isAutoMode(m) && hasTextLayer) rescanPages();
-    if (isReaderMode(m) && hasTextLayer) rebuildReader();
-  } catch (e) {
-    console.error(e);
-    notify(`⚠️ ${e.message}`, { duration: 4000 });
-  } finally {
-    setLoading(null);
-  }
+function handleFile(file) {
+  return openPdf(
+    () => openPdfFile(file, viewer(), setLoading),
+    { successLabel: file.name }
+  );
 }
 
-async function handleGalleryOpen(entry) {
-  try {
-    const { docHash, hasTextLayer } = await openGalleryPaper(entry, viewer(), setLoading);
-    currentDocHash = docHash;
-    currentHasTextLayer = hasTextLayer;
-    notify('Opened: ' + entry.title, { duration: 2500 });
-    if (!hasTextLayer) {
-      notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
-    }
-    const m = getTranslateMode();
-    if (isAutoMode(m) && hasTextLayer) rescanPages();
-    if (isReaderMode(m) && hasTextLayer) rebuildReader();
-  } catch (e) {
-    console.error(e);
-    notify(`⚠️ ${e.message}`, { duration: 6000 });
-  } finally {
-    setLoading(null);
-  }
+function handleGalleryOpen(entry) {
+  return openPdf(
+    () => openGalleryPaper(entry, viewer(), setLoading),
+    { successLabel: entry.title }
+  );
 }
 
-async function handleHistoryOpen(record) {
-  try {
-    const { docHash, hasTextLayer } = await openPdfFromRecord(record, viewer(), setLoading);
-    currentDocHash = docHash;
-    currentHasTextLayer = hasTextLayer;
-    applyBilingualScale();
-    if (!hasTextLayer) {
-      notify('⚠️ Scanned PDF — translation unavailable', { duration: 5000 });
-    }
-    const m = getTranslateMode();
-    if (isAutoMode(m) && hasTextLayer) rescanPages();
-    if (isReaderMode(m) && hasTextLayer) rebuildReader();
-  } catch (e) {
-    console.error(e);
-    notify(`⚠️ ${e.message}`, { duration: 4000 });
-  } finally {
-    setLoading(null);
-  }
+function handleHistoryOpen(record) {
+  return openPdf(
+    () => openPdfFromRecord(record, viewer(), setLoading)
+  );
 }
 
 async function boot() {
@@ -267,19 +252,13 @@ async function boot() {
     await ensureKeysLoaded();
   } catch (e) {
     console.error(e);
-    notify('⚠️ Failed to load API keys — translation disabled', { duration: 6000 });
+    notify('⚠️ Failed to load API keys — translation disabled', { duration: TOAST_ERR });
   }
 
   applyMode(getTranslateMode());
 
-  try {
-    await loadDemoPdf();
-  } catch (e) {
-    console.error(e);
-    notify('⚠️ Failed to load demo PDF: ' + e.message, { duration: 6000 });
-  } finally {
-    setLoading(null);
-  }
+  // openPdf() handles its own errors + clears setLoading in `finally`.
+  await loadDemoPdf();
 
   onSelection(async (text, rect) => {
     if (!currentHasTextLayer) return;
