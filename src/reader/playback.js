@@ -98,15 +98,27 @@ function nextSegAfter(segId) {
   return paras[idx + 1].segId;
 }
 
-function speakSequence(segId) {
+// Polling parameters for the "translation not ready" wait loop.
+// 30 × 600ms ≈ 18s — long enough to cover a slow LLM round-trip,
+// short enough to surface "something is wrong" before the user gives up.
+const TRANSLATION_WAIT_TRIES = 30;
+const TRANSLATION_WAIT_MS = 600;
+
+function speakSequence(segId, waitAttempts = 0) {
   const ctx = deps.getCtx();
   if (!ctx) return;
   const card = deps.getCards().get(segId);
   if (!card) { stopPlayback(); return; }
   const text = card.target.textContent || '';
   if (!text || /^Translating|^⚠️/.test(text)) {
-    // Translation not ready yet — poll again shortly.
-    setTimeout(() => { if (playing) speakSequence(segId); }, 600);
+    if (waitAttempts >= TRANSLATION_WAIT_TRIES) {
+      toast('Translation stalled — stopping playback. Use ↻ Retry on the card or check Settings.', { duration: 5000 });
+      stopPlayback();
+      return;
+    }
+    setTimeout(() => {
+      if (playing) speakSequence(segId, waitAttempts + 1);
+    }, TRANSLATION_WAIT_MS);
     return;
   }
   setSpeaking(segId);

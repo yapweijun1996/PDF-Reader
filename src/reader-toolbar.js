@@ -116,6 +116,14 @@ export function renderReaderToolbar(toolbarEl, handlers) {
     else if (spec.kind === 'select') refs[spec.id] = mountSelect(groupEl, spec, handlers);
   }
 
+  // Translation-queue progress indicator. Hidden until the controller
+  // reports the first batch is in flight.
+  const progressEl = document.createElement('span');
+  progressEl.className = 'r-toolbar-progress';
+  progressEl.hidden = true;
+  toolbarEl.appendChild(progressEl);
+  refs.progress = progressEl;
+
   // Initial sync from prefs (theme + font come from settings.js)
   const prefs = getReaderPrefs();
   if (refs.theme && READER_THEMES.includes(prefs.theme)) refs.theme.value = prefs.theme;
@@ -141,6 +149,16 @@ export function renderReaderToolbar(toolbarEl, handlers) {
     },
     setTheme(t) {
       if (refs.theme) refs.theme.value = t;
+    },
+    setQueueProgress(done, total) {
+      if (!refs.progress) return;
+      if (total <= 0 || done >= total) {
+        refs.progress.hidden = true;
+        refs.progress.textContent = '';
+        return;
+      }
+      refs.progress.hidden = false;
+      refs.progress.textContent = `${done}/${total} translated`;
     },
     refs
   };

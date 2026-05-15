@@ -11,8 +11,12 @@ import { renderReaderToolbar } from '../reader-toolbar.js';
 import * as renderer from './renderer.js';
 import * as playback from './playback.js';
 
-const INTER_CALL_DELAY_MS = 500;
 const FONT_STEP = 1;
+// Translate a few paragraphs in parallel. The gateway happily handles
+// concurrent requests and the Gemini API has its own per-key budget; a
+// pool of 3 fills the reader ~3× faster than the old serial loop without
+// risking rate-limit storms.
+const TRANSLATE_CONCURRENCY = 3;
 
 let active = false;
 let getCtx = null;       // () => ({ docHash, lang })
@@ -22,7 +26,8 @@ let listEl = null;       // .reader-list
 let allParagraphs = [];
 let cards = new Map();   // segId -> { el, target, source, p }
 let translationQueue = [];
-let translating = false;
+let inflightTranslations = 0;
+let processedSegs = new Set();  // segIds that have completed at least one attempt
 let toolbarCtl = null;
 let showOriginal = true;
 
@@ -59,6 +64,10 @@ export function stopReader() {
   cards.clear();
   allParagraphs = [];
   translationQueue.length = 0;
+  processedSegs.clear();
+  toolbarCtl?.setQueueProgress(0, 0);
+  // inflightTranslations not reset — outstanding tasks will short-circuit
+  // at `cards.get(p.segId)` and decrement themselves naturally.
 }
 
 /**
@@ -70,10 +79,12 @@ export function rebuild() {
   if (listEl) listEl.innerHTML = '';
   cards.clear();
   translationQueue.length = 0;
+  processedSegs.clear();
   allParagraphs = extractAllParagraphs();
 
   if (allParagraphs.length === 0) {
     listEl.innerHTML = '<div class="reader-empty">No translatable text in this PDF.</div>';
+    toolbarCtl?.setQueueProgress(0, 0);
     return;
   }
 
@@ -85,20 +96,24 @@ export function rebuild() {
     frag.appendChild(card.el);
   }
   listEl.appendChild(frag);
+  toolbarCtl?.setQueueProgress(0, allParagraphs.length);
   pumpTranslate();
 }
 
-async function pumpTranslate() {
-  if (translating || !active) return;
-  translating = true;
-  try {
-    while (active && translationQueue.length > 0) {
-      const p = translationQueue.shift();
-      await translateOne(p);
-      if (translationQueue.length > 0) await sleep(INTER_CALL_DELAY_MS);
-    }
-  } finally {
-    translating = false;
+/**
+ * Worker pool. Each call tops up the inflight slots from the queue;
+ * when a task finishes it re-invokes pumpTranslate to pull the next.
+ */
+function pumpTranslate() {
+  while (active && inflightTranslations < TRANSLATE_CONCURRENCY && translationQueue.length > 0) {
+    const p = translationQueue.shift();
+    inflightTranslations++;
+    translateOne(p).finally(() => {
+      inflightTranslations--;
+      processedSegs.add(p.segId);
+      toolbarCtl?.setQueueProgress(processedSegs.size, allParagraphs.length);
+      pumpTranslate();
+    });
   }
 }
 
@@ -124,9 +139,18 @@ async function translateOne(p) {
       try { await putTrans(docHash, p.segId, lang, out); } catch {}
     }
   } catch (e) {
-    card.target.textContent = '⚠️ ' + friendlyMessage(e);
-    card.el.classList.add('reader-card-error');
+    renderer.showCardError(card, friendlyMessage(e), () => retryParagraph(p));
   }
+}
+
+function retryParagraph(p) {
+  const card = cards.get(p.segId);
+  if (!card) return;
+  renderer.resetCardForRetry(card);
+  // Don't re-decrement processedSegs — keeping count monotonic means the
+  // progress indicator doesn't bounce around on every retry click.
+  translationQueue.push(p);
+  pumpTranslate();
 }
 
 function bindToolbar() {
@@ -180,6 +204,3 @@ function exportTxt() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms));
-}

@@ -55,6 +55,38 @@ export function writeReaderTarget(el, text) {
 }
 
 /**
+ * Replace a card's target with an error message + retry button. The
+ * caller wires the retry handler; renderer only owns the DOM.
+ */
+export function showCardError(card, message, onRetry) {
+  card.target.classList.remove('has-markdown');
+  card.target.innerHTML = '';
+  const msg = document.createElement('span');
+  msg.className = 'reader-error-msg';
+  msg.textContent = '⚠️ ' + message;
+  card.target.appendChild(msg);
+  if (onRetry) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'reader-retry-btn';
+    btn.textContent = '↻ Retry';
+    btn.addEventListener('click', onRetry);
+    card.target.appendChild(btn);
+  }
+  card.el.classList.add('reader-card-error');
+}
+
+/**
+ * Reset a card back to its "translating" state — called when a retry
+ * is requested, before the new translation attempt begins.
+ */
+export function resetCardForRetry(card) {
+  card.el.classList.remove('reader-card-error');
+  card.target.classList.remove('has-markdown');
+  card.target.innerHTML = '<span class="spinner"></span> Translating…';
+}
+
+/**
  * Apply persisted prefs (theme / font size / line height / show-source)
  * to the reader container. Returns the resolved prefs so the caller can
  * stash the initial `showSource` value for its own state.
