@@ -45,7 +45,7 @@ let _readerModulePromise = null;
 function loadReaderModule() {
   if (_readerModule) return Promise.resolve(_readerModule);
   if (!_readerModulePromise) {
-    _readerModulePromise = import('./reader.js').then(mod => {
+    _readerModulePromise = import('./reader/index.js').then(mod => {
       _readerModule = mod;
       return mod;
     });
